@@ -12,6 +12,11 @@ var bot = new Discord.Client({
    token: auth.token,
    autorun: true
 });
+
+// Declaring variables for game setup
+var playerIDs = []; // empty list to be filled with player IDs
+
+
 bot.on('ready', function (evt) {
     logger.info('Connected');
     logger.info('Logged in as: ');
@@ -19,7 +24,7 @@ bot.on('ready', function (evt) {
 });
 bot.on('message', function (user, userID, channelID, message, evt) {
     // Our bot needs to know if it will execute a command
-    // It will listen for messages that will start with `!`
+    // It will listen for messages that will start with `~`
     if (message.substring(0, 1) == '~') {
         var args = message.substring(1).split(' ');
         var cmd = args[0];
@@ -37,3 +42,9 @@ bot.on('message', function (user, userID, channelID, message, evt) {
          }
      }
 });
+function gameStart() {
+    bot.sendMessage({
+        to: channelID
+        message:'Welcome to Secret Hitler! Type ~join if you want to play!'
+    })
+}
