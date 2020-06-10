@@ -38,13 +38,16 @@ bot.on('message', function (user, userID, channelID, message, evt) {
                     message: 'austin is a stupidhead'
                 });
             break;
+            case 'start':
+                gameStart();
+            break;
             // Just add any case commands if you want to..
          }
      }
 });
 function gameStart() {
     bot.sendMessage({
-        to: channelID
-        message:'Welcome to Secret Hitler! Type ~join if you want to play!'
+        to: channelID,
+        message: 'Welcome to Secret Hitler! Type ~join if you want to play!'
     })
 }
