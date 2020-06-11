@@ -80,13 +80,8 @@ function callVote() {
     yesVotes.length = 0;
     noVotes.length = 0;
     voteInProgress = true;
-    bot.sendMessage({
-        to: gameChannel,
-        message: 'Voting has begun!'
-    });
+    gameChannel.send('Voting has begun!');
 }
-
-
 
 function resolveVote() {
     if(yesVotes.length > noVotes.length){
@@ -176,6 +171,7 @@ bot.on('message', message => {
                     message.channel.send(`${message.author}, a game is already in progress, please wait for it to end!`);
                 } else {
                     init();
+                    gameChannel = message.channel;
                     message.channel.send('Welcome to Secret Hitler! Type ~join if you want to play!');
                     message.channel.send("(DEBUG) " + policyTiles);
                 }
