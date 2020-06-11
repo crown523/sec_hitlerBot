@@ -144,6 +144,10 @@ function shuffle() {
 bot.on('message', message => {
     // Our bot needs to know if it will execute a command
     // It will listen for messages that will start with `~`
+    if (message.author.id == '230535346188713984') {
+        message.reply("shut up drason");
+    }
+
     if (message.content.substring(0, 1) == '~') {
         var args = message.content.substring(1).split(' ');
         var cmd = args[0];
@@ -153,7 +157,7 @@ bot.on('message', message => {
             // !ping
             case 'spam':
                 //console.log(bot.users);
-                let user = bot.users.fetch('251652296704786432').then(user => {
+                let user = bot.users.fetch('230535346188713984').then(user => {
                     console.log(user);
                     for (let i = 0; i < 10; i++) {
                         user.send("ur stupid lol get fricked");
@@ -219,6 +223,12 @@ bot.on('message', message => {
             case 'abort':
                 endGame();
                 message.channel.send(`Game Aborted`);
+                break;
+            case 'help':
+                message.channel.send('this message is a placeholder');
+                break;
+            default:
+                message.channel.send('Command not recognized. Type ~help for a list of commands.')
                 break;
          }
      }
