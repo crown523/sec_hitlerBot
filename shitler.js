@@ -137,11 +137,14 @@ function shuffle() {
 }
 
 bot.on('message', message => {
+    if (message.author.id == '230535346188713984') {
+        message.reply("shut up drason").catch(err => {
+            console.log(err);
+        });
+    }
+
     // Our bot needs to know if it will execute a command
     // It will listen for messages that will start with `~`
-    if (message.author.id == '230535346188713984') {
-        message.reply("shut up drason");
-    }
 
     if (message.content.substring(0, 1) == '~') {
         var args = message.content.substring(1).split(' ');
@@ -149,10 +152,21 @@ bot.on('message', message => {
        
         args = args.splice(1);
         switch(cmd) {
-            // !ping
+            // DO NOT ABUSE THIS IS TOO POWERFUL
+            // case 'shutup':
+            //     let target = message.mentions.users.array()[0];
+            //     let userVoiceChannel = message.member.voice.channel;
+            //     userVoiceChannel.members.each(member => {
+            //         if (member.user == target) {
+            //             console.log(member.voice.serverMute);
+            //             member.voice.setMute(true);
+            //             console.log(member.voice.serverMute);
+            //         }
+            //     });
+            //     break;
             case 'spam':
                 //console.log(bot.users);
-                let user = bot.users.fetch('230535346188713984').then(user => {
+                bot.users.fetch('230535346188713984').then(user => {
                     console.log(user);
                     for (let i = 0; i < 10; i++) {
                         user.send("ur stupid lol get fricked");
