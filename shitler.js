@@ -1,20 +1,16 @@
-var Discord = require('discord.io');
-var logger = require('winston');
 var auth = require('./auth.json');
-// Configure logger settings
-logger.remove(logger.transports.Console);
-logger.add(new logger.transports.Console, {
-    colorize: true
-});
-logger.level = 'debug';
-// Initialize Discord Bot
-var bot = new Discord.Client({
-   token: auth.token,
-   autorun: true
+
+const Discord = require('discord.js');
+const bot = new Discord.Client();
+
+bot.once('ready', () => {
+	console.log('Ready to fuck shit up');
 });
 
+bot.login(auth.token);
+
 // Declaring variables for game setup
-let playerIDs = []; // empty list to be filled with player IDs
+let players = []; // empty list to be filled with player IDs
 let numPlayers;
 let policyTiles = []; //policy tile deck
 let discard = [];
@@ -25,6 +21,9 @@ let chanc = "";
 let bluesPlayed = 0;
 let redsPlayed = 0;
 let failedElections = 0;
+let fascists = [];
+let libs = [];
+let hitler;
 
 
 function init() {
@@ -35,7 +34,7 @@ function init() {
 
 function startGame() {
     gameInProgress = true;
-    numPlayers = playerIDs.length;
+    numPlayers = players.length;
     assignRoles(numPlayers);
     turn();
 }
@@ -46,7 +45,30 @@ function turn() {
 }
 
 function assignRoles(numPlayers) {
-    return null;
+    let numFascists = Math.floor((numPlayers - 1) / 2);
+    for (const user of players) {
+        if (fascists.length == numFascists) {
+            libs.push(user);
+        } else if (libs.length == numPlayers -  numFascists) {
+            fascists.push(user);
+        } else {
+            let flip = Math.floor(Math.random() * 2);
+            switch (flip) {
+                case 0:
+                    fascists.push(user);
+                    break;
+                case 1:
+                    libs.push(user);
+                    break;
+            }
+        }
+    }
+    let index = Math.floor(Math.random() * fascists.length);
+    hitler = fascists[index];
+    console.log(fascists);
+    console.log(libs);
+    console.log(hitler);
+
 }
 
 function elect() {
@@ -81,7 +103,7 @@ function endGame() {
     initiated = false;
     gameInProgress = false;
     policyTiles.length = 0;
-    playerIDs.length = 0;
+    players.length = 0;
     discard.length = 0;
     bluesPlayed = 0;
     redsPlayed = 0;
@@ -99,129 +121,85 @@ function shuffle() {
 
 }
 
-bot.on('ready', function (evt) {
-    logger.info('Connected');
-    logger.info('Logged in as: ');
-    logger.info(bot.username + ' - (' + bot.id + ')');
-});
-bot.on('message', function (user, userID, channelID, message, evt) {
+bot.on('message', message => {
     // Our bot needs to know if it will execute a command
     // It will listen for messages that will start with `~`
-    if (message.substring(0, 1) == '~') {
-        var args = message.substring(1).split(' ');
+    if (message.content.substring(0, 1) == '~') {
+        var args = message.content.substring(1).split(' ');
         var cmd = args[0];
        
         args = args.splice(1);
         switch(cmd) {
             // !ping
-            case 'test':
-                bot.sendMessage({
-                    to: channelID,
-                    message: 'austin is a stupidhead'
+            case 'spam':
+                //console.log(bot.users);
+                let user = bot.users.fetch('251652296704786432').then(user => {
+                    console.log(user);
+                    for (let i = 0; i < 10; i++) {
+                        user.send("ur stupid lol get fricked");
+                    }
+                }).catch(err => {
+                    console.log("error: ")
+                    console.log(err);
                 });
+                
+                message.channel.send('austin is a stupidhead');
             break;
             case 'init':
                 if (initiated) {
-                    bot.sendMessage({
-                        to: channelID,
-                        message: `<@${userID}>, a game already exists! Type ~join to join it.`
-                    })
+                    message.channel.send(`${message.author}, a game already exists! Type ~join to join it.`);
                 } else if (gameInProgress) {
-                    bot.sendMessage({
-                        to: channelID,
-                        message: `<@${userID}>, a game is already in progress, please wait for it to end!`
-                    })
+                    message.channel.send(`${message.author}, a game is already in progress, please wait for it to end!`);
                 } else {
                     init();
-                    bot.sendMessage({
-                        to: channelID,
-                        message: 'Welcome to Secret Hitler! Type ~join if you want to play!'
-                    });
-                    bot.sendMessage({
-                        to: channelID,
-                        message: "(DEBUG) " + policyTiles
-                    });
+                    message.channel.send('Welcome to Secret Hitler! Type ~join if you want to play!');
+                    message.channel.send("(DEBUG) " + policyTiles);
                 }
             break;
             case 'join':
                 if (!initiated) {
-                    bot.sendMessage({
-                        to: channelID,
-                        message: `<@${userID}>, no game currently exists. Type ~init to create one!`
-                    })
+                    message.channel.send(`${message.author}, no game currently exists. Type ~init to create one!`);
                 } else if (gameInProgress) {
-                    bot.sendMessage({
-                        to: channelID,
-                        message: `<@${userID}>, a game is already in progress, please wait for it to end!`
-                    })
-                } else if (playerIDs.length < 11) {
-                    if (!playerIDs.includes(userID)) {
-                        playerIDs.push(userID);
-                        bot.sendMessage({
-                            to: channelID,
-                            message: `<@${userID}> has joined the game! There are ${playerIDs.length} player(s) currently. You can type ~leave to leave. If all players have joined, type ~start to start the game.`
-                        });
-                    } else {
-                        bot.sendMessage({
-                            to: channelID,
-                            message: `<@${userID}>, you have already joined stfu lmao nerd`
-                        });
-                    }
+                    message.channel.send(`${message.author}, a game is already in progress, please wait for it to end!`);
+                } else if (players.length < 11) {
+                    // if (!players.includes(message.author)) {
+                    //     players.push(message.author);
+                    //     message.channel.send(`<@${message.author}> has joined the game! There are ${players.length} player(s) currently. You can type ~leave to leave. If all players have joined, type ~start to start the game.`);
+                    // } else {
+                    //     message.channel.send(`<@${message.author}>, you have already joined stfu lmao nerd`);
+                    // }
+                    players.push(message.author);
+                    message.channel.send(`${message.author} has joined the game! There are ${players.length} player(s) currently. You can type ~leave to leave. If all players have joined, type ~start to start the game.`);
                 } else {
-                    bot.sendMessage({
-                        to: channelID,
-                        message: `Sorry <@${userID}>, the game is full. Please wait for the next one!`
-                    });
+                    message.channel.send(`Sorry ${message.author}, the game is full. Please wait for the next one!`);
                 }
                 break;
             case 'leave' :
-                if (playerIDs.includes(userID)) {
+                if (players.includes(message.author)) {
                     if (gameInProgress) {
-                        bot.sendMessage({
-                            to: channelID,
-                            message: `<@${userID}>, the game is already in progress. No escape.`
-                        })
+                        message.channel.send(`${message.author}, the game is already in progress. No escape.`);
                     } else {
-                        playerIDs.splice(playerIDs.indexOf(userID), 1);
-                        bot.sendMessage({
-                            to: channelID,
-                            message: `<@${userID}>, you've successfully left the game.`
-                        })
+                        players.splice(players.indexOf(message.author), 1);
+                        message.channel.send(`${message.author}, you've successfully left the game.`);
                     }
                 }
                 break;
             case 'start':
                 if (!initiated) {
-                    bot.sendMessage({
-                        to: channelID,
-                        message: `<@${userID}>, no game currently exists. Type ~init to create one!`
-                    })
+                    message.channel.send(`${message.author}, no game currently exists. Type ~init to create one!`);
                 } else if (gameInProgress) {
-                    bot.sendMessage({
-                        to: channelID,
-                        message: `<@${userID}>, a game is already in progress, please wait for it to end!`
-                    })
-                } else if (playerIDs.length < 5) {
-                    bot.sendMessage({
-                        to: channelID,
-                        message: `<@${userID}>, there are not enough players to start the game. You need ${5 - playerIDs.length} more.` 
-                    });
+                    message.channel.send(`${message.author}, a game is already in progress, please wait for it to end!`);
+                } else if (players.length < 5) {
+                    message.channel.send(`${message.author}, there are not enough players to start the game. You need ${5 - players.length} more.`);
                 } else {
                     startGame();
-                    bot.sendMessage({
-                        to: channelID,
-                        message: `Game has begun! Number of players: ${numPlayers}`
-                    });
+                    message.channel.send(`Game has begun! Number of players: ${numPlayers}`);
                 }
                 break;
             case 'abort':
                 endGame();
-                bot.sendMessage({
-                    to: channelID,
-                    message: `Game Aborted`
-                });
+                message.channel.send(`Game Aborted`);
                 break;
-            // Just add any case commands if you want to..
          }
      }
 });
