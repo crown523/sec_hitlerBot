@@ -17,25 +17,79 @@ var bot = new Discord.Client({
 let playerIDs = []; // empty list to be filled with player IDs
 let numPlayers;
 let policyTiles = []; //policy tile deck
+let discard = [];
 let initiated = false;
 let gameInProgress = false;
+let pres = "";
+let chanc = "";
+let bluesPlayed = 0;
+let redsPlayed = 0;
+let failedElections = 0;
 
 
 function init() {
     policyTiles = ['B','B','B','B','B','B','R','R','R','R','R','R','R','R','R','R','R'];
     shuffle();
-    playerIDs.length = 0;
     initiated = true;
+}
+
+function startGame() {
+    gameInProgress = true;
+    numPlayers = playerIDs.length;
+    assignRoles(numPlayers);
+    turn();
+}
+
+function turn() {
+    console.log("temp");
+    elect();
+}
+
+function assignRoles(numPlayers) {
+    return null;
+}
+
+function elect() {
+    return null;
+}
+
+function playPolicy() {
+    return null;
+}
+
+function peekTiles() {
+    return null;
+}
+
+function appointPres() {
+    return null;
+}
+
+function investigatePlayer() {
+    return null;
+}
+
+function killPlayer() {
+    return null;
+}
+
+function checkForWin() {
+    return false;
 }
 
 function endGame() {
     initiated = false;
     gameInProgress = false;
+    policyTiles.length = 0;
+    playerIDs.length = 0;
+    discard.length = 0;
+    bluesPlayed = 0;
+    redsPlayed = 0;
+    failedElections = 0;
 }
 
 //shuffle tiles
 function shuffle() {
-    console.log("hi");
     let count = policyTiles.length;
     while (count) {
         //remove a random card and put it at the top
@@ -101,15 +155,62 @@ bot.on('message', function (user, userID, channelID, message, evt) {
                         message: `<@${userID}>, a game is already in progress, please wait for it to end!`
                     })
                 } else if (playerIDs.length < 11) {
-                    playerIDs.push(userID);
-                    bot.sendMessage({
-                        to: channelID,
-                        message: `<@${userID}> has joined the game! There are ${playerIDs.length} player(s) currently. If all players have joined, type ~start to start the game.`
-                    });
+                    if (!playerIDs.includes(userID)) {
+                        playerIDs.push(userID);
+                        bot.sendMessage({
+                            to: channelID,
+                            message: `<@${userID}> has joined the game! There are ${playerIDs.length} player(s) currently. You can type ~leave to leave. If all players have joined, type ~start to start the game.`
+                        });
+                    } else {
+                        bot.sendMessage({
+                            to: channelID,
+                            message: `<@${userID}>, you have already joined stfu lmao nerd`
+                        });
+                    }
                 } else {
                     bot.sendMessage({
                         to: channelID,
                         message: `Sorry <@${userID}>, the game is full. Please wait for the next one!`
+                    });
+                }
+                break;
+            case 'leave' :
+                if (playerIDs.includes(userID)) {
+                    if (gameInProgress) {
+                        bot.sendMessage({
+                            to: channelID,
+                            message: `<@${userID}>, the game is already in progress. No escape.`
+                        })
+                    } else {
+                        playerIDs.splice(playerIDs.indexOf(userID), 1);
+                        bot.sendMessage({
+                            to: channelID,
+                            message: `<@${userID}>, you've successfully left the game.`
+                        })
+                    }
+                }
+                break;
+            case 'start':
+                if (!initiated) {
+                    bot.sendMessage({
+                        to: channelID,
+                        message: `<@${userID}>, no game currently exists. Type ~init to create one!`
+                    })
+                } else if (gameInProgress) {
+                    bot.sendMessage({
+                        to: channelID,
+                        message: `<@${userID}>, a game is already in progress, please wait for it to end!`
+                    })
+                } else if (playerIDs.length < 5) {
+                    bot.sendMessage({
+                        to: channelID,
+                        message: `<@${userID}>, there are not enough players to start the game. You need ${5 - playerIDs.length} more.` 
+                    });
+                } else {
+                    startGame();
+                    bot.sendMessage({
+                        to: channelID,
+                        message: `Game has begun! Number of players: ${numPlayers}`
                     });
                 }
                 break;
