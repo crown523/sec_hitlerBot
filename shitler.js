@@ -10,6 +10,7 @@ bot.once('ready', () => {
 bot.login(auth.token);
 
 // Declaring variables for game setup
+let gameChannel;
 let players = []; // empty list to be filled with player IDs
 let numPlayers;
 let policyTiles = []; //policy tile deck
@@ -73,6 +74,25 @@ function assignRoles(numPlayers) {
 
 function elect() {
     return null;
+}
+
+function callVote() {
+    yesVotes.length = 0;
+    noVotes.length = 0;
+    voteInProgress = true;
+    bot.sendMessage({
+        to: gameChannel,
+        message: 'Voting has begun!'
+    });
+}
+
+
+
+function resolveVote() {
+    if(yesVotes.length > noVotes.length){
+        // send message that vote has passed
+        return true;
+    }
 }
 
 function playPolicy() {
