@@ -3,6 +3,9 @@ var auth = require('./auth.json');
 const Discord = require('discord.js');
 const bot = new Discord.Client();
 
+//set true for debug/test mode
+const DEBUG = true;
+
 bot.once('ready', () => {
 	console.log('Ready to fuck shit up');
 });
@@ -26,7 +29,7 @@ let fascists = [];
 let libs = [];
 let hitler;
 let pickingChanc = false;
-let turnNum;
+let elecNum;
 let yesVotes = [];
 let noVotes = [];
 
@@ -52,18 +55,12 @@ function shuffle() {
 
 function startGame(gameChannel) {
     gameInProgress = true;
-    turnNum = 0;
+    elecNum = 0;
     numPlayers = players.length;
-
-    //await assignRoles(numPlayers);
-
     assignRoles(numPlayers).then(() => {
-        console.log("reached after await");
-        pres = players[turnNum % players.length];
-        turn(gameChannel);
+        pres = players[elecNum % players.length];
+        startElection(gameChannel);
     });
-
-    
 }
 
 async function assignRoles(numPlayers) {
@@ -113,14 +110,18 @@ async function assignRoles(numPlayers) {
     console.log("done");
 }
 
-function turn(gameChannel) {
+function startElection(gameChannel) {
     gameChannel.send(`${pres}, choose your chancellor by typing ~chancellor and @ing them.`).then(() => {
         pickingChanc = true;
     });
-    turnNum++;
+    elecNum++;
 }
 
-function callVote(gameChannel) {
+//why is this async? idea i came up with to avoid nesting a million unresolved function calls. who knows if it will work
+//the idea is that every action in a game turn starts here, so all function calls will be inside this one.
+//then by making this async we can wait for it to finish executing before starting the next game turn
+//in theory
+async function callVote(gameChannel) {
     yesVotes.length = 0;
     noVotes.length = 0;
     voteInProgress = true;
@@ -141,25 +142,46 @@ function callVote(gameChannel) {
         .catch(err => console.log(err)));
     }
     Promise.all(promises).then(() => {
-        gameChannel.send(`Yes votes: ${yesVotes}\nNo votes: ${noVotes}`);
+        resolveVote(gameChannel);
     })
 }
 
 function resolveVote(gameChannel) {
-    if (yesVotes.length > noVotes.length){
-        gameChannel.send(`The vote has passed.`);
-        return true;
+    gameChannel.send(`Yes votes: ${yesVotes}\nNo votes: ${noVotes}`);
+    if (yesVotes.length > noVotes.length) {
+        failedElections = 0;
+        chanc = chancCand;
+        gameChannel.send(`The vote has passed.`).then(() => {
+            playPolicy(gameChannel);
+        });
+        
     } else {
-        gameChannel.send(`The vote did not pass.`);
-        failedElections++;
-        if(failedElections==3) {
-            //playTopPolicy();
-        }
-        return false;
+        gameChannel.send(`The vote did not pass.`).then(() => {
+            failedElections++;
+            if(failedElections == 3) {
+                //playTopPolicy();
+            }
+            startElection(gameChannel);
+        });
     }
 }
 
-function playPolicy() {
+function playPolicy(gameChannel) {
+    //remove top 3 tiles from deck
+    let tiles = [];
+    tiles.push(policyTiles.splice(0, 3));
+    console.log(tiles);
+    //dm tiles to president
+    //president discards one
+    //dm remaining to chancellor
+    //chancellor selects one to play
+    //check for win
+    if (bluesPlayed == 5) {
+        winMessage(true);
+    }
+    if (redsPlayed == 6) {
+        winMessage(false);
+    }
     return null;
 }
 
@@ -261,7 +283,9 @@ bot.on('message', message => {
                 } else {
                     init();
                     message.channel.send('Welcome to Secret Hitler! Type ~join if you want to play!');
-                    message.channel.send("(DEBUG) " + policyTiles);
+                    if (DEBUG) {
+                        message.channel.send(policyTiles);
+                    }
                 }
             break;
             case 'join':
@@ -270,14 +294,17 @@ bot.on('message', message => {
                 } else if (gameInProgress) {
                     message.channel.send(`${message.author}, a game is already in progress, please wait for it to end!`);
                 } else if (players.length < 11) {
-                    // if (!players.includes(message.author)) {
-                    //     players.push(message.author);
-                    //     message.channel.send(`<@${message.author}> has joined the game! There are ${players.length} player(s) currently. You can type ~leave to leave. If all players have joined, type ~start to start the game.`);
-                    // } else {
-                    //     message.channel.send(`<@${message.author}>, you have already joined stfu lmao nerd`);
-                    // }
-                    players.push(message.author);
-                    message.channel.send(`${message.author} has joined the game! There are ${players.length} player(s) currently. You can type ~leave to leave. If all players have joined, type ~start to start the game.`);
+                    if (DEBUG) {
+                        players.push(message.author);
+                        message.channel.send(`${message.author} has joined the game! There are ${players.length} player(s) currently. You can type ~leave to leave. If all players have joined, type ~start to start the game.`);
+                    } else {
+                        if (!players.includes(message.author)) {
+                            players.push(message.author);
+                            message.channel.send(`<@${message.author}> has joined the game! There are ${players.length} player(s) currently. You can type ~leave to leave. If all players have joined, type ~start to start the game.`);
+                        } else {
+                            message.channel.send(`<@${message.author}>, you have already joined stfu lmao nerd`);
+                        }
+                    }
                 } else {
                     message.channel.send(`Sorry ${message.author}, the game is full. Please wait for the next one!`);
                 }
@@ -308,8 +335,18 @@ bot.on('message', message => {
             case 'chancellor':
                 if (pickingChanc) {
                     chancCand = message.mentions.users.array()[0];
-                    callVote(message.channel);
+                    if (chancCand == chanc || chancCand == pres) {
+                        message.channel.send(`You cannot pick ${chancCand} as they were the previous president or chancellor. Please pick again.`);
+                    } else {
+                        //will this work? i have no idea. i hope so
+                        callVote(message.channel).then(message => {
+                            startElection(message.channel);
+                        });
+                    }
                 }
+                break;
+            case 'board':
+                //TODO: code to visuallize board
                 break;
             case 'abort':
                 endGame();
