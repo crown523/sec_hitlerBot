@@ -30,6 +30,8 @@ let turnNum;
 let yesVotes = [];
 let noVotes = [];
 
+//make the board with tracks
+
 
 function init() {
     policyTiles = ['B','B','B','B','B','B','R','R','R','R','R','R','R','R','R','R','R'];
@@ -48,7 +50,7 @@ function shuffle() {
 
 }
 
-async function startGame(gameChannel) {
+function startGame(gameChannel) {
     gameInProgress = true;
     turnNum = 0;
     numPlayers = players.length;
@@ -112,7 +114,7 @@ async function assignRoles(numPlayers) {
 }
 
 function turn(gameChannel) {
-    gameChannel.send(`${pres}, choose your chancellor by typing ~chancellor and @ing them.` ).then(() => {
+    gameChannel.send(`${pres}, choose your chancellor by typing ~chancellor and @ing them.`).then(() => {
         pickingChanc = true;
     });
     turnNum++;
@@ -123,6 +125,12 @@ function callVote(gameChannel) {
     noVotes.length = 0;
     voteInProgress = true;
     gameChannel.send(`Voting for president: ${pres} and chancellor: ${chancCand} has begun. DM ja or nein to shitler to vote.`);
+    const filter = m => (m.content == ('ja') || m.content == ('nein'));
+    for (const player of players) {
+        player.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] })
+        .then(collected => console.log(collected))
+        .catch(err => console.log(err));
+    }
 }
 
 function resolveVote() {
@@ -193,9 +201,7 @@ bot.on('message', message => {
             //     let userVoiceChannel = message.member.voice.channel;
             //     userVoiceChannel.members.each(member => {
             //         if (member.user == target) {
-            //             console.log(member.voice.serverMute);
             //             member.voice.setMute(true);
-            //             console.log(member.voice.serverMute);
             //         }
             //     });
             //     break;
