@@ -137,23 +137,38 @@ function playPolicy() {
 }
 
 function peekTiles() {
-    return null;
+    return `${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`;
 }
 
 function appointPres() {
     return null;
 }
 
-function investigatePlayer() {
-    return null;
+function investigatePlayer(investigator, investigated) {
+    if(fascists.indexOf(investigated) != -1) {
+        investigator.send(`${investigated} is fascist`);
+    }
+    else {
+        investigator.send(`${investigated} is liberal`);
+    }
 }
 
-function killPlayer() {
-    return null;
+function killPlayer(target, gameChannel) {
+    players.splice(players.indexOf(target), 1);
+    gameChannel.send(`${target} has been eliminated!`);
+    if(target==hitler) {
+        gameChannel.send(`Hitler has been eliminated!`);
+        winMessage(true);
+    }
 }
 
-function checkForWin() {
-    return false;
+function winMessage(libsWin) {
+    if(libsWin) {
+        gameChannel.send(`Liberals win! Congratulations ${liberals}`);
+    }
+    else {
+        gameChannel.send(`Fascists win! Congratulations ${fascists}`);
+    }
 }
 
 function endGame() {
