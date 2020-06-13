@@ -10,21 +10,25 @@ bot.once('ready', () => {
 bot.login(auth.token);
 
 // Declaring variables for game setup
-let gameChannel;
 let players = []; // empty list to be filled with player IDs
 let numPlayers;
 let policyTiles = []; //policy tile deck
 let discard = [];
 let initiated = false;
 let gameInProgress = false;
-let pres = "";
-let chanc = "";
+let pres;
+let chancCand;
+let chanc;
 let bluesPlayed = 0;
 let redsPlayed = 0;
 let failedElections = 0;
 let fascists = [];
 let libs = [];
 let hitler;
+let pickingChanc = false;
+let turnNum;
+let yesVotes = [];
+let noVotes = [];
 
 
 function init() {
@@ -33,20 +37,40 @@ function init() {
     initiated = true;
 }
 
-function startGame() {
+//shuffle tiles
+function shuffle() {
+    let count = policyTiles.length;
+    while (count) {
+        //remove a random card and put it at the top
+        policyTiles.push(policyTiles.splice(Math.floor(Math.random() * count), 1)[0]); 
+        count--;
+    }
+
+}
+
+async function startGame(gameChannel) {
     gameInProgress = true;
+    turnNum = 0;
     numPlayers = players.length;
-    assignRoles(numPlayers);
-    turn();
+
+    //await assignRoles(numPlayers);
+
+    assignRoles(numPlayers).then(() => {
+        console.log("reached after await");
+        pres = players[turnNum % players.length];
+        turn(gameChannel);
+    });
+
+    
 }
 
-function turn() {
-    console.log("temp");
-    elect();
-}
-
-function assignRoles(numPlayers) {
+async function assignRoles(numPlayers) {
     let numFascists = Math.floor((numPlayers - 1) / 2);
+
+    //change this to better method
+    //gen numFascists unique random numbers between 0 and numPlayers inc
+    //those indices in player array become fascist
+    //everyone else is lib
     for (const user of players) {
         if (fascists.length == numFascists) {
             libs.push(user);
@@ -66,25 +90,43 @@ function assignRoles(numPlayers) {
     }
     let index = Math.floor(Math.random() * fascists.length);
     hitler = fascists[index];
-    console.log(fascists);
-    console.log(libs);
-    console.log(hitler);
+    
+    for (const lib of libs) {
+        await lib.send("You are a liberal for this game.");
+    }
 
+    for (const fasc of fascists) {
+        if (fasc != hitler) {
+                await fasc.send(`The fascists this game are: ${fascists}. ${hitler} is the secret hitler.`);
+        } else {
+            if (numPlayers > 6) {
+                await fasc.send(`You are the secret hitler. You do not know who your fellow fascists are.`);
+            } else {
+                await fasc.send(`You are the secret hitler. The fascists this game are: ${fascists}.`);
+            }
+            
+        }
+    }
+
+    console.log("done");
 }
 
-function elect() {
-    return null;
+function turn(gameChannel) {
+    gameChannel.send(`${pres}, choose your chancellor by typing ~chancellor and @ing them.` ).then(() => {
+        pickingChanc = true;
+    });
+    turnNum++;
 }
 
-function callVote() {
+function callVote(gameChannel) {
     yesVotes.length = 0;
     noVotes.length = 0;
     voteInProgress = true;
-    gameChannel.send('Voting has begun!');
+    gameChannel.send(`Voting for president: ${pres} and chancellor: ${chancCand} has begun. DM ja or nein to shitler to vote.`);
 }
 
 function resolveVote() {
-    if(yesVotes.length > noVotes.length){
+    if (yesVotes.length > noVotes.length){
         // send message that vote has passed
         return true;
     }
@@ -123,20 +165,13 @@ function endGame() {
     bluesPlayed = 0;
     redsPlayed = 0;
     failedElections = 0;
-}
-
-//shuffle tiles
-function shuffle() {
-    let count = policyTiles.length;
-    while (count) {
-        //remove a random card and put it at the top
-        policyTiles.push(policyTiles.splice(Math.floor(Math.random() * count), 1)[0]); 
-        count--;
-    }
-
+    libs.length = 0;
+    fasc.length = 0;
 }
 
 bot.on('message', message => {
+
+    //this is literally bullying
     if (message.author.id == '230535346188713984') {
         message.reply("shut up drason").catch(err => {
             console.log(err);
@@ -185,7 +220,6 @@ bot.on('message', message => {
                     message.channel.send(`${message.author}, a game is already in progress, please wait for it to end!`);
                 } else {
                     init();
-                    gameChannel = message.channel;
                     message.channel.send('Welcome to Secret Hitler! Type ~join if you want to play!');
                     message.channel.send("(DEBUG) " + policyTiles);
                 }
@@ -226,8 +260,15 @@ bot.on('message', message => {
                 } else if (players.length < 5) {
                     message.channel.send(`${message.author}, there are not enough players to start the game. You need ${5 - players.length} more.`);
                 } else {
-                    startGame();
-                    message.channel.send(`Game has begun! Number of players: ${numPlayers}`);
+                    message.channel.send(`Game has begun! Number of players: ${players.length}`).then(() => {
+                        startGame(message.channel);
+                    });
+                }
+                break;
+            case 'chancellor':
+                if (pickingChanc) {
+                    chancCand = message.mentions.users.array()[0];
+                    callVote(message.channel);
                 }
                 break;
             case 'abort':
