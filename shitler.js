@@ -125,10 +125,17 @@ function callVote(gameChannel) {
     gameChannel.send(`Voting for president: ${pres} and chancellor: ${chancCand} has begun. DM ja or nein to shitler to vote.`);
 }
 
-function resolveVote() {
+function resolveVote(gameChannel) {
     if (yesVotes.length > noVotes.length){
-        // send message that vote has passed
+        gameChannel.send(`The vote has passed.`);
         return true;
+    } else {
+        gameChannel.send(`The vote did not pass.`);
+        failedElections++;
+        if(failedElections==3) {
+            //playTopPolicy();
+        }
+        return false;
     }
 }
 
