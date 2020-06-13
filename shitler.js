@@ -126,11 +126,23 @@ function callVote(gameChannel) {
     voteInProgress = true;
     gameChannel.send(`Voting for president: ${pres} and chancellor: ${chancCand} has begun. DM ja or nein to shitler to vote.`);
     const filter = m => (m.content == ('ja') || m.content == ('nein'));
+    promises = [];
     for (const player of players) {
-        player.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] })
-        .then(collected => console.log(collected))
-        .catch(err => console.log(err));
+        promises.push(player.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] })
+        .then(collected => {
+            //console.log(collected);
+            let msg = collected.first();
+            if (msg.content == "ja") {
+                yesVotes.push(msg.author);
+            } else {
+                noVotes.push(msg.author);
+            }
+        })
+        .catch(err => console.log(err)));
     }
+    Promise.all(promises).then(() => {
+        gameChannel.send(`Yes votes: ${yesVotes}\nNo votes: ${noVotes}`);
+    })
 }
 
 function resolveVote(gameChannel) {
