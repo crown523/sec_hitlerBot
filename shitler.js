@@ -278,7 +278,7 @@ function killPlayer(target, gameChannel) {
     }
 }
 
-function winMessage(libsWin) {
+function winMessage(libsWin, gameChannel) {
     if(libsWin) {
         gameChannel.send(`Liberals win! Congratulations ${liberals}`);
     }
@@ -298,6 +298,10 @@ function endGame() {
     failedElections = 0;
     libs.length = 0;
     fascists.length = 0;
+    chanc = null;
+    chancCand = null;
+    pres = null;
+    prevPres = null;
 }
 
 bot.on('message', message => {
