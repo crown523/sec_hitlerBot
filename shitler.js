@@ -91,17 +91,29 @@ async function assignRoles(numPlayers) {
     hitler = fascists[index];
     
     for (const lib of libs) {
-        await lib.send("You are a liberal for this game.");
+        await lib.send("You are a liberal for this game.").catch(err => {
+            console.log("error: ")
+            console.log(err);
+        });;
     }
 
     for (const fasc of fascists) {
         if (fasc != hitler) {
-                await fasc.send(`The fascists this game are: ${fascists}. ${hitler} is the secret hitler.`);
+                await fasc.send(`The fascists this game are: ${fascists}. ${hitler} is the secret hitler.`).catch(err => {
+                    console.log("error: ")
+                    console.log(err);
+                });;
         } else {
             if (numPlayers > 6) {
-                await fasc.send(`You are the secret hitler. You do not know who your fellow fascists are.`);
+                await fasc.send(`You are the secret hitler. You do not know who your fellow fascists are.`).catch(err => {
+                    console.log("error: ")
+                    console.log(err);
+                });;
             } else {
-                await fasc.send(`You are the secret hitler. The fascists this game are: ${fascists}.`);
+                await fasc.send(`You are the secret hitler. The fascists this game are: ${fascists}.`).catch(err => {
+                    console.log("error: ")
+                    console.log(err);
+                });;
             }
             
         }
@@ -125,6 +137,7 @@ async function callVote(gameChannel) {
     yesVotes.length = 0;
     noVotes.length = 0;
     voteInProgress = true;
+    pickingChanc = false;
     gameChannel.send(`Voting for president: ${pres} and chancellor: ${chancCand} has begun. DM ja or nein to shitler to vote.`);
     const filter = m => (m.content == ('ja') || m.content == ('nein'));
     promises = [];
@@ -147,10 +160,14 @@ async function callVote(gameChannel) {
 }
 
 function resolveVote(gameChannel) {
+    voteInProgress = false;
     gameChannel.send(`Yes votes: ${yesVotes}\nNo votes: ${noVotes}`);
     if (yesVotes.length > noVotes.length) {
         failedElections = 0;
         chanc = chancCand;
+        if (redsPlayed >= 3 && chanc == hitler) {
+            gameChannel.send(`Game over! Hitler has been elected chancellor.`).then(winMessage(false));
+        }
         gameChannel.send(`The vote has passed.`).then(() => {
             playPolicy(gameChannel);
         });
@@ -166,23 +183,59 @@ function resolveVote(gameChannel) {
     }
 }
 
+//ah yes, callback hell
 function playPolicy(gameChannel) {
     //remove top 3 tiles from deck
     let tiles = [];
     tiles.push(policyTiles.splice(0, 3));
     console.log(tiles);
     //dm tiles to president
-    //president discards one
-    //dm remaining to chancellor
-    //chancellor selects one to play
-    //check for win
-    if (bluesPlayed == 5) {
-        winMessage(true);
-    }
-    if (redsPlayed == 6) {
-        winMessage(false);
-    }
-    return null;
+    pres.send(tiles).then(tiles => {
+        //pres discards
+        let filter;
+        if (tiles.indexOf('B') == -1) {
+            filter = m => (m.content == ('R'));
+        } else if (tiles.indexOf('R') == -1) {
+            filter = m => (m.content == ('B'));
+        } else {
+            filter = m => (m.content == ('B') || m.content == ('R'));
+        }
+        pres.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
+            let msg = collected.first();
+            discard.append(tiles.splice(tiles.indexOf(msg.content), 1));
+
+            //dm remaining to chancellor
+            chanc.send(tiles).then(tiles => {
+                //chancellor selects one to play
+                let filter;
+                if (tiles.indexOf('B') == -1) {
+                    filter = m => (m.content == ('R'));
+                } else if (tiles.indexOf('R') == -1) {
+                    filter = m => (m.content == ('B'));
+                } else {
+                    filter = m => (m.content == ('B') || m.content == ('R'));
+                }
+                chanc.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
+                    let msg = collected.first;
+                if (msg.content == 'B') {
+                    bluesPlayed++;
+                } else {
+                    redsPlayed++;
+                }
+                discard.append(tiles);
+
+                //check for win
+                if (bluesPlayed == 5) {
+                    winMessage(true);
+                }
+                if (redsPlayed == 6) {
+                    winMessage(false);
+                }
+                }).catch(err => console.log(err));
+            }).catch(err => console.log(err));
+        }).catch(err => console.log(err));
+    }).catch(err => console.log(err));
+
 }
 
 function peekTiles() {
@@ -195,10 +248,16 @@ function appointPres() {
 
 function investigatePlayer(investigator, investigated) {
     if(fascists.indexOf(investigated) != -1) {
-        investigator.send(`${investigated} is fascist`);
+        investigator.send(`${investigated} is fascist`).catch(err => {
+            console.log("error: ")
+            console.log(err);
+        });;
     }
     else {
-        investigator.send(`${investigated} is liberal`);
+        investigator.send(`${investigated} is liberal`).catch(err => {
+            console.log("error: ")
+            console.log(err);
+        });;
     }
 }
 
@@ -230,14 +289,14 @@ function endGame() {
     redsPlayed = 0;
     failedElections = 0;
     libs.length = 0;
-    fasc.length = 0;
+    fascists.length = 0;
 }
 
 bot.on('message', message => {
 
     //this is literally bullying
     if (message.author.id == '230535346188713984') {
-        message.reply("shut up drason").catch(err => {
+        message.reply("god sees you, and he is disappointed").catch(err => {
             console.log(err);
         });
     }
@@ -349,8 +408,10 @@ bot.on('message', message => {
                 //TODO: code to visuallize board
                 break;
             case 'abort':
-                endGame();
-                message.channel.send(`Game Aborted`);
+                if (DEBUG) {
+                    endGame();
+                    message.channel.send(`Game Aborted`);
+                }
                 break;
             case 'help':
                 message.channel.send('this message is a placeholder');
