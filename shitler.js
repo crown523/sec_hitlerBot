@@ -20,6 +20,7 @@ let discard = [];
 let initiated = false;
 let gameInProgress = false;
 let pres;
+let prevPres;
 let chancCand;
 let chanc;
 let bluesPlayed = 0;
@@ -58,7 +59,6 @@ function startGame(gameChannel) {
     elecNum = 0;
     numPlayers = players.length;
     assignRoles(numPlayers).then(() => {
-        pres = players[elecNum % players.length];
         startElection(gameChannel);
     });
 }
@@ -123,6 +123,8 @@ async function assignRoles(numPlayers) {
 }
 
 function startElection(gameChannel) {
+    prevPres = pres;
+    pres = players[elecNum % players.length];
     gameChannel.send(`${pres}, choose your chancellor by typing ~chancellor and @ing them.`).then(() => {
         pickingChanc = true;
     });
@@ -187,10 +189,10 @@ function resolveVote(gameChannel) {
 function playPolicy(gameChannel) {
     //remove top 3 tiles from deck
     let tiles = [];
-    tiles.push(policyTiles.splice(0, 3));
+    tiles = policyTiles.splice(0, 3);
     console.log(tiles);
     //dm tiles to president
-    pres.send(tiles).then(tiles => {
+    pres.send(tiles).then(() => {
         //pres discards
         let filter;
         if (tiles.indexOf('B') == -1) {
@@ -200,12 +202,14 @@ function playPolicy(gameChannel) {
         } else {
             filter = m => (m.content == ('B') || m.content == ('R'));
         }
-        pres.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
+        pres.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
             let msg = collected.first();
-            discard.append(tiles.splice(tiles.indexOf(msg.content), 1));
-
+            //this wont work
+            //.append();
+            tiles.splice(tiles.indexOf(msg.content), 1)
+            console.log(tiles);
             //dm remaining to chancellor
-            chanc.send(tiles).then(tiles => {
+            chanc.send(tiles).then(() => {
                 //chancellor selects one to play
                 let filter;
                 if (tiles.indexOf('B') == -1) {
@@ -215,22 +219,26 @@ function playPolicy(gameChannel) {
                 } else {
                     filter = m => (m.content == ('B') || m.content == ('R'));
                 }
-                chanc.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
-                    let msg = collected.first;
-                if (msg.content == 'B') {
-                    bluesPlayed++;
-                } else {
-                    redsPlayed++;
-                }
-                discard.append(tiles);
+                chanc.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
+                    let msg = collected.first();
+                    if (msg.content == 'B') {
+                        gameChannel.send("Liberal policy played.");
+                        bluesPlayed++;
+                    } else {
+                        gameChannel.send("Fascist policy played.");
+                        redsPlayed++;
+                    }
+                    //this wont work either
+                    //discard.append(tiles);
 
-                //check for win
-                if (bluesPlayed == 5) {
-                    winMessage(true);
-                }
-                if (redsPlayed == 6) {
-                    winMessage(false);
-                }
+                    //check for win
+                    if (bluesPlayed == 5) {
+                        winMessage(true);
+                    }
+                    if (redsPlayed == 6) {
+                        winMessage(false);
+                    }
+                    startElection(gameChannel);
                 }).catch(err => console.log(err));
             }).catch(err => console.log(err));
         }).catch(err => console.log(err));
@@ -394,13 +402,20 @@ bot.on('message', message => {
             case 'chancellor':
                 if (pickingChanc) {
                     chancCand = message.mentions.users.array()[0];
-                    if (chancCand == chanc || chancCand == pres) {
-                        message.channel.send(`You cannot pick ${chancCand} as they were the previous president or chancellor. Please pick again.`);
+                    if (DEBUG) {
+                        callVote(message.channel);
                     } else {
-                        //will this work? i have no idea. i hope so
-                        callVote(message.channel).then(message => {
-                            startElection(message.channel);
-                        });
+                        if (chancCand == chanc || chancCand == prevPres) {
+                            message.channel.send(`You cannot pick ${chancCand} as they were the previous president or chancellor. Please pick again.`);
+                        } else {
+                            //will this work? i have no idea. i hope so
+
+                            //it does not work! what now lol
+                            // callVote(message.channel).then(() => {
+                            //     startElection(message.channel);
+                            // });
+                            callVote(message.channel);
+                        }
                     }
                 }
                 break;
