@@ -22,6 +22,7 @@ let gameInProgress = false;
 let pres;
 let prevPres;
 let chancCand;
+let presCand;
 let chanc;
 let bluesPlayed = 0;
 let redsPlayed = 0;
@@ -30,6 +31,7 @@ let fascists = [];
 let libs = [];
 let hitler;
 let pickingChanc = false;
+let appointingPres = false;
 let elecNum;
 let yesVotes = [];
 let noVotes = [];
@@ -251,6 +253,10 @@ function peekTiles() {
 }
 
 function appointPres() {
+    prevPres = pres;
+    gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
+        appointingPres = true;
+    });
     return null;
 }
 
@@ -423,6 +429,15 @@ bot.on('message', message => {
                     }
                 }
                 break;
+            case 'appoint':
+                if(appointingPres) {
+                    presCand = message.mentions.users.array()[0];
+                    appointingPres = false;
+                } else {
+                    if (presCand == pres) {
+                        message.channel.send(`You cannot pick yourself. Please pick again.`);
+                    }
+                }
             case 'board':
                 //TODO: code to visuallize board
                 break;
