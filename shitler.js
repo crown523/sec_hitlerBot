@@ -437,6 +437,10 @@ bot.on('message', message => {
                     } else {
                         pres = presCand;
                         appointingPres = false;
+                        gameChannel.send(`${pres}, choose your chancellor by typing ~chancellor and @ing them.`).then(() => {
+                            pickingChanc = true;
+                        });
+                        elecNum++;
                     }
                 }
             break;
