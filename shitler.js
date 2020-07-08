@@ -432,12 +432,14 @@ bot.on('message', message => {
             case 'appoint':
                 if(appointingPres) {
                     presCand = message.mentions.users.array()[0];
-                    appointingPres = false;
-                } else {
                     if (presCand == pres) {
                         message.channel.send(`You cannot pick yourself. Please pick again.`);
+                    } else {
+                        pres = presCand;
+                        appointingPres = false;
                     }
                 }
+            break;
             case 'board':
                 //TODO: code to visuallize board
                 break;
