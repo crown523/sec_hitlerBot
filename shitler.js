@@ -36,7 +36,10 @@ let elecNum;
 let yesVotes = [];
 let noVotes = [];
 
-//make the board with tracks
+//TODO: make the board with tracks
+//TODO: veto power
+//TODO: increase verbosity
+//TODO: make it pretty
 
 
 function init() {
@@ -229,6 +232,59 @@ function playPolicy(gameChannel) {
                     } else {
                         gameChannel.send("Fascist policy played.");
                         redsPlayed++;
+
+                        //SPECIAL POWERS ACTIVATE!!!!!!!
+                        //maybe this should be anothe rmethod idk this is kinda long alreayd
+                        switch(Math.floor((numPlayers - 1) / 2)) {
+                            case 2:
+                                switch(redsPlayed) {
+                                    case 3:
+                                        //peek
+                                        break;
+                                    case 4:
+                                        //kill
+                                        break;
+                                    case 5:
+                                        //kill
+                                        break;
+                                }
+                                break;
+                            case 3:
+                                switch(redsPlayed) {
+                                    case 2:
+                                        //investigate
+                                        break;
+                                    case 3:
+                                        //appoint
+                                        break;
+                                    case 4:
+                                        //kill
+                                        break;
+                                    case 5:
+                                        //kill
+                                        break;
+                                }
+                                break;
+                            case 4:
+                                switch(redsPlayed) {
+                                    case 1:
+                                        //investigate
+                                        break;
+                                    case 2:
+                                        //investigate
+                                        break;
+                                    case 3:
+                                        //appoint
+                                        break;
+                                    case 4:
+                                        //kill
+                                        break;
+                                    case 5:
+                                        //kill
+                                        break;
+                                }
+                                break;
+                        }
                     }
                     //this wont work either
                     //discard.append(tiles);
@@ -245,7 +301,6 @@ function playPolicy(gameChannel) {
             }).catch(err => console.log(err));
         }).catch(err => console.log(err));
     }).catch(err => console.log(err));
-
 }
 
 function peekTiles() {
@@ -257,7 +312,7 @@ function appointPres() {
     gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
         appointingPres = true;
     });
-    return null;
+
 }
 
 function investigatePlayer(investigator, investigated) {
@@ -338,20 +393,22 @@ bot.on('message', message => {
             //         }
             //     });
             //     break;
-            case 'spam':
-                //console.log(bot.users);
-                bot.users.fetch('230535346188713984').then(user => {
-                    console.log(user);
-                    for (let i = 0; i < 10; i++) {
-                        user.send("ur stupid lol get fricked");
-                    }
-                }).catch(err => {
-                    console.log("error: ")
-                    console.log(err);
-                });
+
+            // case 'spam':
+            //     //console.log(bot.users);
+            //     bot.users.fetch('230535346188713984').then(user => {
+            //         console.log(user);
+            //         for (let i = 0; i < 10; i++) {
+            //             user.send("ur stupid lol get fricked");
+            //         }
+            //     }).catch(err => {
+            //         console.log("error: ")
+            //         console.log(err);
+            //     });
                 
-                message.channel.send('austin is a stupidhead');
-            break;
+            //     message.channel.send('austin is a stupidhead');
+            // break;
+
             case 'init':
                 if (initiated) {
                     message.channel.send(`${message.author}, a game already exists! Type ~join to join it.`);
