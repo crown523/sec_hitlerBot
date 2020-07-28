@@ -35,6 +35,7 @@ let appointingPres = false;
 let elecNum;
 let yesVotes = [];
 let noVotes = [];
+let killingPlayer = false;
 
 //TODO: make the board with tracks
 //TODO: veto power
@@ -240,12 +241,15 @@ function playPolicy(gameChannel) {
                                 switch(redsPlayed) {
                                     case 3:
                                         //peek
+                                        await peekTiles();
                                         break;
                                     case 4:
                                         //kill
+                                        killingPlayer = true; //add a command to actually do it
                                         break;
                                     case 5:
                                         //kill
+                                        killingPlayer = true;
                                         break;
                                 }
                                 break;
@@ -256,6 +260,10 @@ function playPolicy(gameChannel) {
                                         break;
                                     case 3:
                                         //appoint
+                                        prevPres = pres;
+                                        gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
+                                            appointingPres = true;
+                                        });
                                         break;
                                     case 4:
                                         //kill
@@ -275,6 +283,10 @@ function playPolicy(gameChannel) {
                                         break;
                                     case 3:
                                         //appoint
+                                        prevPres = pres;
+                                        gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
+                                            appointingPres = true;
+                                        });
                                         break;
                                     case 4:
                                         //kill
@@ -304,15 +316,9 @@ function playPolicy(gameChannel) {
 }
 
 function peekTiles() {
-    return `${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`;
-}
-
-function appointPres() {
-    prevPres = pres;
-    gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
-        appointingPres = true;
+    pres.send(`${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`).then(() =>{
+        return; //i hope this works
     });
-
 }
 
 function investigatePlayer(investigator, investigated) {
@@ -330,15 +336,6 @@ function investigatePlayer(investigator, investigated) {
     }
 }
 
-function killPlayer(target, gameChannel) {
-    players.splice(players.indexOf(target), 1);
-    gameChannel.send(`${target} has been eliminated!`);
-    if(target==hitler) {
-        gameChannel.send(`Hitler has been eliminated!`);
-        winMessage(true);
-    }
-}
-
 function winMessage(libsWin, gameChannel) {
     if(libsWin) {
         gameChannel.send(`Liberals win! Congratulations ${liberals}`);
@@ -346,6 +343,7 @@ function winMessage(libsWin, gameChannel) {
     else {
         gameChannel.send(`Fascists win! Congratulations ${fascists}`);
     }
+    endGame();
 }
 
 function endGame() {
@@ -486,6 +484,21 @@ bot.on('message', message => {
                     }
                 }
                 break;
+            case 'kill':
+                if (killingPlayer) {
+                    target = message.mentions.users.array()[0];
+                    players.splice(players.indexOf(target), 1);
+                    //TODO: server mute dead player?
+                    message.channel.send(`${target} has been eliminated!`).then(() => {
+                        if(target == hitler) {
+                            message.channel.send(`Hitler has been eliminated!`).then(() => {
+                                winMessage(true);
+                            })
+                        }
+                        killingPlayer = false;
+                    });  
+                }
+                break;
             case 'appoint':
                 if(appointingPres) {
                     presCand = message.mentions.users.array()[0];
@@ -500,7 +513,7 @@ bot.on('message', message => {
                         elecNum++;
                     }
                 }
-            break;
+                break;
             case 'board':
                 //TODO: code to visuallize board
                 break;
@@ -511,6 +524,7 @@ bot.on('message', message => {
                 }
                 break;
             case 'help':
+                //TODO: finish this
                 message.channel.send('this message is a placeholder');
                 break;
             default:
