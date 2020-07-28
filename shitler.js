@@ -24,6 +24,7 @@ let prevPres;
 let chancCand;
 let presCand;
 let chanc;
+let investigated;
 let bluesPlayed = 0;
 let redsPlayed = 0;
 let failedElections = 0;
@@ -32,6 +33,7 @@ let libs = [];
 let hitler;
 let pickingChanc = false;
 let appointingPres = false;
+let investigating = false;
 let elecNum;
 let yesVotes = [];
 let noVotes = [];
@@ -315,19 +317,10 @@ function appointPres() {
 
 }
 
-function investigatePlayer(investigator, investigated) {
-    if(fascists.indexOf(investigated) != -1) {
-        investigator.send(`${investigated} is fascist`).catch(err => {
-            console.log("error: ")
-            console.log(err);
-        });;
-    }
-    else {
-        investigator.send(`${investigated} is liberal`).catch(err => {
-            console.log("error: ")
-            console.log(err);
-        });;
-    }
+function investigatePlayer() {
+    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
+        investigating = true;
+    });
 }
 
 function killPlayer(target, gameChannel) {
@@ -501,6 +494,23 @@ bot.on('message', message => {
                     }
                 }
             break;
+            case 'investigate':
+                if(investigating) {
+                    investigated = message.mentions.users.array()[0];
+                    if(fascists.indexOf(investigated) != -1) {
+                        pres.send(`${investigated} is fascist`).catch(err => {
+                            console.log("error: ")
+                            console.log(err);
+                        });;
+                    }
+                    else {
+                        pres.send(`${investigated} is liberal`).catch(err => {
+                            console.log("error: ")
+                            console.log(err);
+                        });;
+                    }
+                }
+                break;
             case 'board':
                 //TODO: code to visuallize board
                 break;
