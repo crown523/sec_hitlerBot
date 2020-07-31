@@ -102,7 +102,7 @@ async function assignRoles(numPlayers) {
         await lib.send("You are a liberal for this game.").catch(err => {
             console.log("error: ")
             console.log(err);
-        });;
+        });
     }
 
     for (const fasc of fascists) {
@@ -110,18 +110,18 @@ async function assignRoles(numPlayers) {
                 await fasc.send(`The fascists this game are: ${fascists}. ${hitler} is the secret hitler.`).catch(err => {
                     console.log("error: ")
                     console.log(err);
-                });;
+                });
         } else {
             if (numPlayers > 6) {
                 await fasc.send(`You are the secret hitler. You do not know who your fellow fascists are.`).catch(err => {
                     console.log("error: ")
                     console.log(err);
-                });;
+                });
             } else {
                 await fasc.send(`You are the secret hitler. The fascists this game are: ${fascists}.`).catch(err => {
                     console.log("error: ")
                     console.log(err);
-                });;
+                });
             }
             
         }
@@ -167,6 +167,97 @@ async function callVote(gameChannel) {
     Promise.all(promises).then(() => {
         resolveVote(gameChannel);
     })
+}
+
+function checkForPowers() {
+    //SPECIAL POWERS ACTIVATE!!!!!!!
+    //maybe this should be anothe rmethod idk this is kinda long alreayd
+    switch(Math.floor((numPlayers - 1) / 2)) {
+        case 2:
+            switch(redsPlayed) {
+                case 3:
+                    //peek
+                    peekTiles();
+                    break;
+                case 4:
+                    //kill
+                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
+                        killingPlayer = true;
+                    });
+                    break;
+                case 5:
+                    //kill
+                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
+                        killingPlayer = true;
+                    });
+                    break;
+            }
+            break;
+        case 3:
+            switch(redsPlayed) {
+                case 2:
+                    //investigate
+                    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
+                        investigating = true;
+                    });
+                    break;
+                case 3:
+                    //appoint
+                    prevPres = pres;
+                    gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
+                        appointingPres = true;
+                    });
+                    break;
+                case 4:
+                    //kill
+                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
+                        killingPlayer = true;
+                    });
+                    break;
+                case 5:
+                    //kill
+                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
+                        killingPlayer = true;
+                    });
+                    break;
+            }
+            break;
+        case 4:
+            switch(redsPlayed) {
+                case 1:
+                    //investigate
+                    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
+                        investigating = true;
+                    });
+                    break;
+                case 2:
+                    //investigate
+                    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
+                        investigating = true;
+                    });
+                    break;
+                case 3:
+                    //appoint
+                    prevPres = pres;
+                    gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
+                        appointingPres = true;
+                    });
+                    break;
+                case 4:
+                    //kill
+                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
+                        killingPlayer = true;
+                    });
+                    break;
+                case 5:
+                    //kill
+                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
+                        killingPlayer = true;
+                    });
+                    break;
+            }
+            break;
+    }
 }
 
 function resolveVote(gameChannel) {
@@ -236,70 +327,7 @@ function playPolicy(gameChannel) {
                         gameChannel.send("Fascist policy played.");
                         redsPlayed++;
 
-                        //SPECIAL POWERS ACTIVATE!!!!!!!
-                        //maybe this should be anothe rmethod idk this is kinda long alreayd
-                        switch(Math.floor((numPlayers - 1) / 2)) {
-                            case 2:
-                                switch(redsPlayed) {
-                                    case 3:
-                                        //peek
-                                        await peekTiles();
-                                        break;
-                                    case 4:
-                                        //kill
-                                        killingPlayer = true; //add a command to actually do it
-                                        break;
-                                    case 5:
-                                        //kill
-                                        killingPlayer = true;
-                                        break;
-                                }
-                                break;
-                            case 3:
-                                switch(redsPlayed) {
-                                    case 2:
-                                        //investigate
-                                        break;
-                                    case 3:
-                                        //appoint
-                                        prevPres = pres;
-                                        gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
-                                            appointingPres = true;
-                                        });
-                                        break;
-                                    case 4:
-                                        //kill
-                                        break;
-                                    case 5:
-                                        //kill
-                                        break;
-                                }
-                                break;
-                            case 4:
-                                switch(redsPlayed) {
-                                    case 1:
-                                        //investigate
-                                        break;
-                                    case 2:
-                                        //investigate
-                                        break;
-                                    case 3:
-                                        //appoint
-                                        prevPres = pres;
-                                        gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
-                                            appointingPres = true;
-                                        });
-                                        break;
-                                    case 4:
-                                        //kill
-                                        break;
-                                    case 5:
-                                        //kill
-                                        break;
-                                }
-                                break;
-                        }
-                    }
+                    checkForPowers();
                     //this wont work either
                     //discard.append(tiles);
 
@@ -318,15 +346,7 @@ function playPolicy(gameChannel) {
 }
 
 function peekTiles() {
-    pres.send(`${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`).then(() =>{
-        return; //i hope this works
-    });
-}
-
-function investigatePlayer() {
-    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
-        investigating = true;
-    });
+    pres.send(`${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`);
 }
 
 function winMessage(libsWin, gameChannel) {
@@ -359,14 +379,13 @@ function endGame() {
 bot.on('message', message => {
 
     //this is literally bullying
-    if (message.author.id == '230535346188713984') {
-        message.reply("god sees you, and he is disappointed").catch(err => {
-            console.log(err);
-        });
-    }
+    // if (message.author.id == '230535346188713984') {
+    //     message.reply("god sees you, and he is disappointed").catch(err => {
+    //         console.log(err);
+    //     });
+    // }
 
-    // Our bot needs to know if it will execute a command
-    // It will listen for messages that will start with `~`
+    // listen for messages that will start with `~`
 
     if (message.content.substring(0, 1) == '~') {
         var args = message.content.substring(1).split(' ');
@@ -375,16 +394,20 @@ bot.on('message', message => {
         args = args.splice(1);
         switch(cmd) {
             // DO NOT ABUSE THIS IS TOO POWERFUL
+            //could probably do crazier shit tbh
             // case 'shutup':
-            //     let target = message.mentions.users.array()[0];
-            //     let userVoiceChannel = message.member.voice.channel;
-            //     userVoiceChannel.members.each(member => {
-            //         if (member.user == target) {
-            //             member.voice.setMute(true);
-            //         }
-            //     });
+            //     if (message.author == '266133712997974017') {
+            //         //console.log(message.mentions.users.array()[0]);
+            //         let target = message.mentions.users.array()[0];
+            //         let userVoiceChannel = message.member.voice.channel;
+            //         userVoiceChannel.members.each(member => {
+            //             if (member.user == target) {
+            //                 member.voice.setMute(true);
+            //             }
+            //         });
+            //     }
             //     break;
-
+            
             // case 'spam':
             //     //console.log(bot.users);
             //     bot.users.fetch('230535346188713984').then(user => {
@@ -412,7 +435,7 @@ bot.on('message', message => {
                         message.channel.send(policyTiles);
                     }
                 }
-            break;
+                break;
             case 'join':
                 if (!initiated) {
                     message.channel.send(`${message.author}, no game currently exists. Type ~init to create one!`);
@@ -514,14 +537,15 @@ bot.on('message', message => {
                         pres.send(`${investigated} is fascist`).catch(err => {
                             console.log("error: ")
                             console.log(err);
-                        });;
+                        });
                     }
                     else {
                         pres.send(`${investigated} is liberal`).catch(err => {
                             console.log("error: ")
                             console.log(err);
-                        });;
+                        });
                     }
+                    investigating = false;
                 }
                 break;
             case 'board':
