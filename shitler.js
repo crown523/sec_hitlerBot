@@ -123,10 +123,8 @@ async function assignRoles(numPlayers) {
                     console.log(err);
                 });
             }
-            
         }
     }
-
     console.log("done");
 }
 
@@ -169,15 +167,16 @@ async function callVote(gameChannel) {
     })
 }
 
-function checkForPowers() {
+function checkForPowers(gameChannel) {
     //SPECIAL POWERS ACTIVATE!!!!!!!
-    //maybe this should be anothe rmethod idk this is kinda long alreayd
     switch(Math.floor((numPlayers - 1) / 2)) {
         case 2:
             switch(redsPlayed) {
                 case 3:
                     //peek
-                    peekTiles();
+                    gameChannel.send("President is peeking at tiles.").then(() => {
+                        pres.send(`You look at the top 3 tiles and see: ${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`);
+                    });
                     break;
                 case 4:
                     //kill
@@ -267,7 +266,7 @@ function resolveVote(gameChannel) {
         failedElections = 0;
         chanc = chancCand;
         if (redsPlayed >= 3 && chanc == hitler) {
-            gameChannel.send(`Game over! Hitler has been elected chancellor.`).then(winMessage(false));
+            gameChannel.send(`Game over! Hitler has been elected chancellor.`).then(winMessage(false, gameChannel));
         }
         gameChannel.send(`The vote has passed.`).then(() => {
             playPolicy(gameChannel);
@@ -291,7 +290,7 @@ function playPolicy(gameChannel) {
     tiles = policyTiles.splice(0, 3);
     console.log(tiles);
     //dm tiles to president
-    pres.send(tiles).then(() => {
+    pres.send("DM me the tile you wish to discard from the following: " + tiles).then(() => {
         //pres discards
         let filter;
         if (tiles.indexOf('B') == -1) {
@@ -305,10 +304,11 @@ function playPolicy(gameChannel) {
             let msg = collected.first();
             //this wont work
             //.append();
-            tiles.splice(tiles.indexOf(msg.content), 1)
-            console.log(tiles);
+            temp = tiles.splice(tiles.indexOf(msg.content), 1);
+            discard.append(temp[0]);
+            console.log(discard);
             //dm remaining to chancellor
-            chanc.send(tiles).then(() => {
+            chanc.send("DM me the tile you wish to play from the following: " + tiles).then(() => {
                 //chancellor selects one to play
                 let filter;
                 if (tiles.indexOf('B') == -1) {
@@ -321,32 +321,36 @@ function playPolicy(gameChannel) {
                 chanc.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
                     let msg = collected.first();
                     if (msg.content == 'B') {
+                        temp = tiles.splice(tiles.indexOf(msg.content), 1);
+                        discard.append(temp[0]);
                         gameChannel.send("Liberal policy played.");
                         bluesPlayed++;
                     } else {
+                        temp = tiles.splice(tiles.indexOf(msg.content), 1);
+                        discard.append(temp[0]);
                         gameChannel.send("Fascist policy played.");
                         redsPlayed++;
+                        checkForPowers(gameChannel);
 
-                    checkForPowers();
-                    //this wont work either
-                    //discard.append(tiles);
+                        //check for win
+                        if (bluesPlayed == 5) {
+                            winMessage(true, gameChannel);
+                        }
+                        if (redsPlayed == 6) {
+                            winMessage(false, gameChannel);
+                        }
 
-                    //check for win
-                    if (bluesPlayed == 5) {
-                        winMessage(true);
-                    }
-                    if (redsPlayed == 6) {
-                        winMessage(false);
+                        //check for empty deck
+                        if (policyTiles.length < 3) {
+                            policyTiles = policyTiles.concat(discard);
+                            shuffle();
+                        }
                     }
                     startElection(gameChannel);
                 }).catch(err => console.log(err));
             }).catch(err => console.log(err));
         }).catch(err => console.log(err));
     }).catch(err => console.log(err));
-}
-
-function peekTiles() {
-    pres.send(`${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`);
 }
 
 function winMessage(libsWin, gameChannel) {
@@ -386,7 +390,6 @@ bot.on('message', message => {
     // }
 
     // listen for messages that will start with `~`
-
     if (message.content.substring(0, 1) == '~') {
         var args = message.content.substring(1).split(' ');
         var cmd = args[0];
@@ -482,70 +485,84 @@ bot.on('message', message => {
                 break;
             case 'chancellor':
                 if (pickingChanc) {
-                    chancCand = message.mentions.users.array()[0];
-                    if (DEBUG) {
-                        callVote(message.channel);
-                    } else {
-                        if (chancCand == chanc || chancCand == prevPres) {
-                            message.channel.send(`You cannot pick ${chancCand} as they were the previous president or chancellor. Please pick again.`);
-                        } else {
-                            //will this work? i have no idea. i hope so
-
-                            //it does not work! what now lol
-                            // callVote(message.channel).then(() => {
-                            //     startElection(message.channel);
-                            // });
+                    if (message.author == pres) {
+                        chancCand = message.mentions.users.array()[0];
+                        if (DEBUG) {
                             callVote(message.channel);
+                        } else {
+                            if (players.indexOf(chancCand) == -1) {
+                                message.channel.send(`You can't pick ${chancCand}.`)
+                            }
+                            if (chancCand == chanc || chancCand == prevPres) {
+                                message.channel.send(`You cannot pick ${chancCand} as they were the previous president or chancellor. Please pick again.`);
+                            } else {
+                                //will this work? i have no idea. i hope so
+
+                                //it does not work! what now lol
+                                // callVote(message.channel).then(() => {
+                                //     startElection(message.channel);
+                                // });
+                                callVote(message.channel);
+                            }
                         }
                     }
                 }
                 break;
             case 'kill':
                 if (killingPlayer) {
-                    target = message.mentions.users.array()[0];
-                    players.splice(players.indexOf(target), 1);
-                    //TODO: server mute dead player?
-                    message.channel.send(`${target} has been eliminated!`).then(() => {
-                        if(target == hitler) {
-                            message.channel.send(`Hitler has been eliminated!`).then(() => {
-                                winMessage(true);
-                            })
+                    if (message.author == pres) {
+                        target = message.mentions.users.array()[0];
+                        if (players.indexOf(target) == -1) {
+                            message.channel.send(`You can't kill ${target}.`)
                         }
-                        killingPlayer = false;
-                    });  
+                        players.splice(players.indexOf(target), 1);
+                        //TODO: server mute dead player?
+                        message.channel.send(`${target} has been eliminated!`).then(() => {
+                            if(target == hitler) {
+                                message.channel.send(`Hitler has been eliminated!`).then(() => {
+                                    winMessage(true, gameChannel);
+                                })
+                            }
+                            killingPlayer = false;
+                        });  
+                    }
                 }
                 break;
             case 'appoint':
                 if(appointingPres) {
-                    presCand = message.mentions.users.array()[0];
-                    if (presCand == pres) {
-                        message.channel.send(`You cannot pick yourself. Please pick again.`);
-                    } else {
-                        pres = presCand;
-                        appointingPres = false;
-                        gameChannel.send(`${pres}, choose your chancellor by typing ~chancellor and @ing them.`).then(() => {
-                            pickingChanc = true;
-                        });
-                        elecNum++;
+                    if (message.author == pres) {
+                        presCand = message.mentions.users.array()[0];
+                        if (presCand == pres) {
+                            message.channel.send(`You cannot pick yourself. Please pick again.`);
+                        } else {
+                            pres = presCand;
+                            appointingPres = false;
+                            gameChannel.send(`${pres}, choose your chancellor by typing ~appoint and @ing them.`).then(() => {
+                                pickingChanc = true;
+                            });
+                            elecNum++;
+                        }
                     }
                 }
             break;
             case 'investigate':
                 if(investigating) {
-                    investigated = message.mentions.users.array()[0];
-                    if(fascists.indexOf(investigated) != -1) {
-                        pres.send(`${investigated} is fascist`).catch(err => {
-                            console.log("error: ")
-                            console.log(err);
-                        });
+                    if (message.author == pres) {
+                        investigated = message.mentions.users.array()[0];
+                        if(fascists.indexOf(investigated) != -1) {
+                            pres.send(`${investigated} is fascist`).catch(err => {
+                                console.log("error: ")
+                                console.log(err);
+                            });
+                        }
+                        else {
+                            pres.send(`${investigated} is liberal`).catch(err => {
+                                console.log("error: ")
+                                console.log(err);
+                            });
+                        }
+                        investigating = false;
                     }
-                    else {
-                        pres.send(`${investigated} is liberal`).catch(err => {
-                            console.log("error: ")
-                            console.log(err);
-                        });
-                    }
-                    investigating = false;
                 }
                 break;
             case 'board':
