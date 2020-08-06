@@ -370,7 +370,9 @@ function showBoard(gameChannel) {
     line5 = "|";
     line6 = "|";
     line7 = "------------------------------------------------------------";
-    board = `${line1}\n${line2}\n${line3}\n${line4}\n${line5}\n${line6}\n${line7}\n`
+    line8 = `Players still alive: ${players}`;
+    line9 = `Current failed elections: ${failedElections} out of 3`;
+    board = `${line1}\n${line2}\n${line3}\n${line4}\n${line5}\n${line6}\n${line7}\n${line8}\n${line9}`;
     gameChannel.send(board);
 }
 
