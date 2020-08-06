@@ -167,6 +167,25 @@ async function callVote(gameChannel) {
     })
 }
 
+function playTopPolicy(gameChannel) {
+    //Upon the election counter reaching 3, play the top policy tile
+    if(policyTiles.splice(0,1) == 'B') {
+        bluesPlayed++;
+    } else {
+        redsPlayed++;
+    }
+
+    //check for win
+    if (bluesPlayed == 5) {
+        winMessage(true, gameChannel);
+    }
+    if (redsPlayed == 6) {
+        winMessage(false, gameChannel);
+    }
+
+    checkForPowers(gameChannel);
+}
+
 function checkForPowers(gameChannel) {
     //SPECIAL POWERS ACTIVATE!!!!!!!
     switch(Math.floor((numPlayers - 1) / 2)) {
@@ -276,7 +295,7 @@ function resolveVote(gameChannel) {
         gameChannel.send(`The vote did not pass.`).then(() => {
             failedElections++;
             if(failedElections == 3) {
-                //playTopPolicy();
+                playTopPolicy();
             }
             startElection(gameChannel);
         });
