@@ -328,7 +328,9 @@ function playPolicy(gameChannel) {
                         discard.push(temp[0]);
                         gameChannel.send("Fascist policy played.");
                         redsPlayed++;
-                        checkForPowers(gameChannel);
+                        if (redsPlayed > 2) {
+                            checkForPowers(gameChannel);
+                        }
 
                         //check for win
                         if (bluesPlayed == 5) {
