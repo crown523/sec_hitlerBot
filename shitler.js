@@ -43,6 +43,9 @@ let killingPlayer = false;
 //TODO: veto power
 //TODO: increase verbosity
 //TODO: make it pretty
+//TODO: move to using reactions
+//TODO: improve role assign
+//TODO: move to await to avoid callbacks
 
 
 function init() {
@@ -78,6 +81,7 @@ async function assignRoles(numPlayers) {
     //gen numFascists unique random numbers between 0 and numPlayers inc
     //those indices in player array become fascist
     //everyone else is lib
+
     for (const user of players) {
         if (fascists.length == numFascists) {
             libs.push(user);
@@ -125,7 +129,6 @@ async function assignRoles(numPlayers) {
             }
         }
     }
-    console.log("done");
 }
 
 function startElection(gameChannel) {
@@ -137,30 +140,46 @@ function startElection(gameChannel) {
     elecNum++;
 }
 
-//why is this async? idea i came up with to avoid nesting a million unresolved function calls. who knows if it will work
-//the idea is that every action in a game turn starts here, so all function calls will be inside this one.
-//then by making this async we can wait for it to finish executing before starting the next game turn
-//in theory
 async function callVote(gameChannel) {
     yesVotes.length = 0;
     noVotes.length = 0;
     voteInProgress = true;
     pickingChanc = false;
-    gameChannel.send(`Voting for president: ${pres} and chancellor: ${chancCand} has begun. DM ja or nein to shitler to vote.`);
-    const filter = m => (m.content == ('ja') || m.content == ('nein'));
+    gameChannel.send(`Voting for president: ${pres} and chancellor: ${chancCand} has begun. Check your DMs to vote!`);
+    const filter = (reaction, user) => {
+        return ['👍', '👎'].includes(reaction.emoji.name) && (user.id != bot.user.id);
+    };
     promises = [];
+
     for (const player of players) {
-        promises.push(player.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] })
-        .then(collected => {
-            console.log(collected);
-            let msg = collected.first();
-            if (msg.content == "ja") {
-                yesVotes.push(msg.author);
+        const message = await player.dmChannel.send("Please react to this message with (ja emoji) for Yes and (nein emoji) for No).");
+        await message.react('👍');
+        await message.react('👎');
+        promises.push(message.awaitReactions(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
+            const reaction = collected.first();
+            if (reaction.emoji.name === '👍') {
+                yesVotes.push(player);
             } else {
-                noVotes.push(msg.author);
+                noVotes.push(player);
             }
-        })
-        .catch(err => console.log(err)));
+        }).catch(collected => {
+            message.reply('bad user bad');
+        }));
+
+        //this is the old way that listens for DMs
+        // promises.push(player.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] })
+        // .then(collected => {
+        //     console.log(collected);
+        //     let msg = collected.first();
+        //     if (msg.content == "ja") {
+        //         yesVotes.push(msg.author);
+        //     } else {
+        //         noVotes.push(msg.author);
+        //     }
+        // })
+        // .catch(err => console.log(err)));
+        // console.log("promises: ");
+        // console.log(promises);
     }
     Promise.all(promises).then(() => {
         resolveVote(gameChannel);
@@ -183,7 +202,9 @@ function playTopPolicy(gameChannel) {
         winMessage(false, gameChannel);
     }
 
-    checkForPowers(gameChannel);
+    if (redsPlayed > 2) {
+        checkForPowers(gameChannel);
+    }
 }
 
 function checkForPowers(gameChannel) {
@@ -303,73 +324,143 @@ function resolveVote(gameChannel) {
 }
 
 //ah yes, callback hell
-function playPolicy(gameChannel) {
+//edit: no more callback hell!!!
+async function playPolicy(gameChannel) {
     //remove top 3 tiles from deck
     let tiles = [];
     tiles = policyTiles.splice(0, 3);
-    console.log(tiles);
+
     //dm tiles to president
-    pres.send("DM me the tile you wish to discard from the following: " + tiles).then(() => {
-        //pres discards
-        let filter;
-        if (tiles.indexOf('B') == -1) {
-            filter = m => (m.content == ('R'));
-        } else if (tiles.indexOf('R') == -1) {
-            filter = m => (m.content == ('B'));
+    const message = await pres.send("React with the number of the tile you with to discard from the following: " + tiles);
+    await message.react('1️⃣');
+    await message.react('2️⃣');
+    await message.react('3️⃣');
+
+    //pres discards
+    const filter = (reaction, user) => {
+        return ['1️⃣', '2️⃣', '3️⃣'].includes(reaction.emoji.name) && (user.id != bot.user.id);
+    };
+    await message.awaitReactions(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
+        const reaction = collected.first();
+        if (reaction.emoji.name === '1️⃣') {
+            //discard first
+            discard.push(tiles.splice(0, 1));
+        } else if (reaction.emoji.name === '2️⃣') {
+            //discard second
+            discard.push(tiles.splice(1, 1));
         } else {
-            filter = m => (m.content == ('B') || m.content == ('R'));
+            //discard third
+            discard.push(tiles.splice(2, 1));
         }
-        pres.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
-            let msg = collected.first();
-            temp = tiles.splice(tiles.indexOf(msg.content), 1);
-            discard.push(temp[0]);
-            console.log(discard);
-            //dm remaining to chancellor
-            chanc.send("DM me the tile you wish to play from the following: " + tiles).then(() => {
-                //chancellor selects one to play
-                let filter;
-                if (tiles.indexOf('B') == -1) {
-                    filter = m => (m.content == ('R'));
-                } else if (tiles.indexOf('R') == -1) {
-                    filter = m => (m.content == ('B'));
-                } else {
-                    filter = m => (m.content == ('B') || m.content == ('R'));
-                }
-                chanc.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
-                    let msg = collected.first();
-                    if (msg.content == 'B') {
-                        temp = tiles.splice(tiles.indexOf(msg.content), 1);
-                        discard.push(temp[0]);
-                        gameChannel.send("Liberal policy played.");
-                        bluesPlayed++;
-                    } else {
-                        temp = tiles.splice(tiles.indexOf(msg.content), 1);
-                        discard.push(temp[0]);
-                        gameChannel.send("Fascist policy played.");
-                        redsPlayed++;
-                        if (redsPlayed > 2) {
-                            checkForPowers(gameChannel);
-                        }
+        console.log(tiles);
+    }).catch(collected => {
+        message.reply('bad user bad');
+    });
 
-                        //check for win
-                        if (bluesPlayed == 5) {
-                            winMessage(true, gameChannel);
-                        }
-                        if (redsPlayed == 6) {
-                            winMessage(false, gameChannel);
-                        }
+    //chanc plays
+    const filter2 = (reaction, user) => {
+        return ['1️⃣', '2️⃣'].includes(reaction.emoji.name) && (user.id != bot.user.id);
+    };
+    const message2 = await chanc.send("React with the number of the tile you with to play from the following: " + tiles);
+    await message2.awaitReactions(filter2, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
+        const reaction = collected.first();
+        if (reaction.emoji.name === '1️⃣') {
+            //play first (discard second)
+            discard.push(tiles.splice(1, 1));
+        } else {
+            //play second (discard first)
+            discard.push(tiles.splice(0, 1));
+        }
+        
+        if (tiles[0] === 'B') {
+            gameChannel.send("Liberal policy played.");
+            bluesPlayed++;
+        } else {
+            gameChannel.send("Fascist policy played.");
+            redsPlayed++;
+            if (redsPlayed > 2) {
+                checkForPowers(gameChannel);
+            }
 
-                        //check for empty deck
-                        if (policyTiles.length < 3) {
-                            policyTiles = policyTiles.concat(discard);
-                            shuffle();
-                        }
-                    }
-                    startElection(gameChannel);
-                }).catch(err => console.log(err));
-            }).catch(err => console.log(err));
-        }).catch(err => console.log(err));
+            //check for win
+            if (bluesPlayed == 5) {
+                winMessage(true, gameChannel);
+            }
+            if (redsPlayed == 6) {
+                winMessage(false, gameChannel);
+            }
+
+            //check for empty deck
+            if (policyTiles.length < 3) {
+                policyTiles = policyTiles.concat(discard);
+                shuffle();
+            }
+        }
     }).catch(err => console.log(err));
+    startElection(gameChannel);
+    
+
+    // old way
+
+    // let filter;
+    // if (tiles.indexOf('B') == -1) {
+    //     filter = m => (m.content == ('R'));
+    // } else if (tiles.indexOf('R') == -1) {
+    //     filter = m => (m.content == ('B'));
+    // } else {
+    //     filter = m => (m.content == ('B') || m.content == ('R'));
+    // }
+    
+    // pres.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
+    //     let msg = collected.first();
+    //     temp = tiles.splice(tiles.indexOf(msg.content), 1);
+    //     discard.push(temp[0]);
+    //     console.log(discard);
+    //     //dm remaining to chancellor
+    //     chanc.send("DM me the tile you wish to play from the following: " + tiles).then(() => {
+    //         //chancellor selects one to play
+    //         let filter;
+    //         if (tiles.indexOf('B') == -1) {
+    //             filter = m => (m.content == ('R'));
+    //         } else if (tiles.indexOf('R') == -1) {
+    //             filter = m => (m.content == ('B'));
+    //         } else {
+    //             filter = m => (m.content == ('B') || m.content == ('R'));
+    //         }
+    //         chanc.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
+    //             let msg = collected.first();
+    //             if (msg.content == 'B') {
+    //                 temp = tiles.splice(tiles.indexOf(msg.content), 1);
+    //                 discard.push(temp[0]);
+    //                 gameChannel.send("Liberal policy played.");
+    //                 bluesPlayed++;
+    //             } else {
+    //                 temp = tiles.splice(tiles.indexOf(msg.content), 1);
+    //                 discard.push(temp[0]);
+    //                 gameChannel.send("Fascist policy played.");
+    //                 redsPlayed++;
+    //                 if (redsPlayed > 2) {
+    //                     checkForPowers(gameChannel);
+    //                 }
+
+    //                 //check for win
+    //                 if (bluesPlayed == 5) {
+    //                     winMessage(true, gameChannel);
+    //                 }
+    //                 if (redsPlayed == 6) {
+    //                     winMessage(false, gameChannel);
+    //                 }
+
+    //                 //check for empty deck
+    //                 if (policyTiles.length < 3) {
+    //                     policyTiles = policyTiles.concat(discard);
+    //                     shuffle();
+    //                 }
+    //             }
+    //             startElection(gameChannel);
+    //         }).catch(err => console.log(err));
+    //     }).catch(err => console.log(err));
+    // }).catch(err => console.log(err));
 }
 
 function winMessage(libsWin, gameChannel) {
@@ -383,6 +474,7 @@ function winMessage(libsWin, gameChannel) {
 }
 
 function showBoard(gameChannel) {
+    //find a better way to do this lmao
     //ascii art i guess?
     let line1 = "------------------------------------------------------------"; //60 hyphens
     let line2 = "|";
@@ -431,6 +523,13 @@ function endGame() {
     pres = null;
     prevPres = null;
 }
+
+// bot.on('messageReactionAdd', (reaction, user) => {
+//     let message = reaction.message, emoji = reaction.emoji;
+
+//     console.log(emoji.name);
+
+// });
 
 bot.on('message', message => {
 
@@ -487,7 +586,7 @@ bot.on('message', message => {
                     init();
                     message.channel.send('Welcome to Secret Hitler! Type ~join if you want to play!');
                     if (DEBUG) {
-                        message.channel.send(policyTiles);
+                        //message.channel.send(policyTiles);
                     }
                 }
                 break;
