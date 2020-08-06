@@ -590,7 +590,8 @@ bot.on('message', message => {
                 break;
             case 'help':
                 //TODO: finish this
-                message.channel.send('this message is a placeholder');
+                message.channel.send('To create a game, use ~init. To join the game, use ~join. \
+                Before the game starts, you can leave using ~leave. Once everyone has joined, use ~start to begin the game.');
                 break;
             default:
                 message.channel.send('Command not recognized. Type ~help for a list of commands.')
