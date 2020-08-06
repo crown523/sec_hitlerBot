@@ -152,7 +152,7 @@ async function callVote(gameChannel) {
     for (const player of players) {
         promises.push(player.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] })
         .then(collected => {
-            //console.log(collected);
+            console.log(collected);
             let msg = collected.first();
             if (msg.content == "ja") {
                 yesVotes.push(msg.author);
@@ -302,10 +302,8 @@ function playPolicy(gameChannel) {
         }
         pres.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
             let msg = collected.first();
-            //this wont work
-            //.append();
             temp = tiles.splice(tiles.indexOf(msg.content), 1);
-            discard.append(temp[0]);
+            discard.push(temp[0]);
             console.log(discard);
             //dm remaining to chancellor
             chanc.send("DM me the tile you wish to play from the following: " + tiles).then(() => {
@@ -322,12 +320,12 @@ function playPolicy(gameChannel) {
                     let msg = collected.first();
                     if (msg.content == 'B') {
                         temp = tiles.splice(tiles.indexOf(msg.content), 1);
-                        discard.append(temp[0]);
+                        discard.push(temp[0]);
                         gameChannel.send("Liberal policy played.");
                         bluesPlayed++;
                     } else {
                         temp = tiles.splice(tiles.indexOf(msg.content), 1);
-                        discard.append(temp[0]);
+                        discard.push(temp[0]);
                         gameChannel.send("Fascist policy played.");
                         redsPlayed++;
                         checkForPowers(gameChannel);
@@ -361,6 +359,19 @@ function winMessage(libsWin, gameChannel) {
         gameChannel.send(`Fascists win! Congratulations ${fascists}`);
     }
     endGame();
+}
+
+function showBoard(gameChannel) {
+    //ascii art i guess?
+    line1 = "------------------------------------------------------------"; //60 hyphens
+    line2 = "|";
+    line3 = "|";
+    line4 = "------------------------------------------------------------";
+    line5 = "|";
+    line6 = "|";
+    line7 = "------------------------------------------------------------";
+    board = `${line1}\n${line2}\n${line3}\n${line4}\n${line5}\n${line6}\n${line7}\n`
+    gameChannel.send(board);
 }
 
 function endGame() {
@@ -491,7 +502,7 @@ bot.on('message', message => {
                             callVote(message.channel);
                         } else {
                             if (players.indexOf(chancCand) == -1) {
-                                message.channel.send(`You can't pick ${chancCand}.`)
+                                message.channel.send(`Invalid choice, try again.`)
                             }
                             if (chancCand == chanc || chancCand == prevPres) {
                                 message.channel.send(`You cannot pick ${chancCand} as they were the previous president or chancellor. Please pick again.`);
@@ -567,6 +578,7 @@ bot.on('message', message => {
                 break;
             case 'board':
                 //TODO: code to visuallize board
+                showBoard(message.channel);
                 break;
             case 'abort':
                 if (DEBUG) {
