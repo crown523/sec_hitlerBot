@@ -39,7 +39,6 @@ let elecNum;
 let yesVotes = [];
 let noVotes = [];
 
-//TODO: make the board with tracks
 //TODO: veto power
 //TODO: increase verbosity
 //TODO: make it pretty
@@ -48,19 +47,12 @@ let noVotes = [];
 //TODO: move to await to avoid callbacks
 
 
+//game setup functions
+
 function init() {
     policyTiles = ['B','B','B','B','B','B','R','R','R','R','R','R','R','R','R','R','R'];
     shuffle();
     initiated = true;
-}
-
-function startGame(gameChannel) {
-    gameInProgress = true;
-    elecNum = 0;
-    numPlayers = players.length;
-    assignRoles(numPlayers).then(() => {
-        startElection(gameChannel);
-    });
 }
 
 //shuffle tiles
@@ -74,29 +66,26 @@ function shuffle() {
 
 }
 
+function startGame(gameChannel) {
+    gameInProgress = true;
+    elecNum = 0;
+    numPlayers = players.length;
+    assignRoles(numPlayers).then(() => {
+        startElection(gameChannel);
+    });
+}
+
 async function assignRoles(numPlayers) {
     let numFascists = Math.floor((numPlayers - 1) / 2);
-
-    //change this to better method
-    //gen numFascists unique random numbers between 0 and numPlayers inc
-    //those indices in player array become fascist
-    //everyone else is lib
-
-    for (const user of players) {
-        if (fascists.length == numFascists) {
-            libs.push(user);
-        } else if (libs.length == numPlayers -  numFascists) {
-            fascists.push(user);
-        } else {
-            let flip = Math.floor(Math.random() * 2);
-            switch (flip) {
-                case 0:
-                    fascists.push(user);
-                    break;
-                case 1:
-                    libs.push(user);
-                    break;
-            }
+    while (fascists.length < numFascists) {
+        index = Math.floor(Math.random() * numPlayers);
+        if (!fascists.includes(players[index])) {
+            fascists.push(players[index]);
+        }
+    }
+    for (const player of players) {
+        if (!fascists.includes(player)) {
+            libs.push(player);
         }
     }
     let index = Math.floor(Math.random() * fascists.length);
@@ -130,6 +119,8 @@ async function assignRoles(numPlayers) {
         }
     }
 }
+
+//main game loop
 
 function startElection(gameChannel) {
     prevPres = pres;
@@ -168,145 +159,6 @@ async function callVote(gameChannel) {
     Promise.all(promises).then(() => {
         resolveVote(gameChannel);
     })
-}
-
-async function playTopPolicy(gameChannel) {
-    //Upon the election counter reaching 3, play the top policy tile
-    if (policyTiles.splice(0,1) == 'B') {
-        bluesPlayed++;
-    } else {
-        redsPlayed++;
-    }
-
-    //check for win
-    if (bluesPlayed == 5) {
-        winMessage(true, gameChannel);
-    } else if (redsPlayed == 6) {
-        winMessage(false, gameChannel);
-    }
-
-    if (redsPlayed > 2) {
-        await checkForPowers(gameChannel);
-    }
-}
-
-async function checkForPowers(gameChannel) {
-    //SPECIAL POWERS ACTIVATE!!!!!!!
-    console.log("entering checkforpowers")
-    switch(Math.floor((numPlayers - 1) / 2)) {
-        case 2:
-            switch(redsPlayed) {
-                case 3:
-                    //peek
-                    await gameChannel.send(`President ${pres} is peeking at tiles.`)
-                    await pres.send(`You look at the top 3 tiles and see: ${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`);
-                    break;
-                case 4:
-                    //kill
-                    await killPlayer(gameChannel);
-                    break;
-                case 5:
-                    //kill
-                    await killPlayer(gameChannel);
-                    break;
-            }
-            break;
-        case 3:
-            switch(redsPlayed) {
-                case 2:
-                    //investigate
-                    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
-                        investigating = true;
-                    });
-                    break;
-                case 3:
-                    //appoint
-                    prevPres = pres;
-                    gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
-                        appointingPres = true;
-                    });
-                    break;
-                case 4:
-                    //kill
-                    await killPlayer(gameChannel);
-                    break;
-                case 5:
-                    //kill
-                    await killPlayer(gameChannel);
-                    break;
-            }
-            break;
-        case 4:
-            switch(redsPlayed) {
-                case 1:
-                    //investigate
-                    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
-                        investigating = true;
-                    });
-                    break;
-                case 2:
-                    //investigate
-                    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
-                        investigating = true;
-                    });
-                    break;
-                case 3:
-                    //appoint
-                    prevPres = pres;
-                    gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
-                        appointingPres = true;
-                    });
-                    break;
-                case 4:
-                    //kill
-                    await killPlayer(gameChannel);
-                    break;
-                case 5:
-                    //kill
-                    await killPlayer(gameChannel);
-                    break;
-            }
-            break;
-    }
-    console.log("exiting checkForPowers");
-}
-
-async function killPlayer(gameChannel) {
-    console.log("entering killplayer")
-    await gameChannel.send(`${pres}, kill a player by typing kill and @ing them.`);
-    const filter = (message) => {
-        return (message.content.substring(0, 4) == 'kill') && (message.author == pres);
-    };
-    console.log("here");
-    //theres probably a cleaner way here, maybe collected = await ... and then remove the then???
-    await gameChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(async collected => {
-        console.log("collected")
-        let msg = collected.first();
-        target = msg.mentions.users.array()[0];
-
-        //code check for suicide
-        if (players.indexOf(target) == -1) {
-            gameChannel.send(`You can't kill ${target}.`)
-            await killPlayer(gameChannel);
-        } else {
-            players.splice(players.indexOf(target), 1);
-            //TODO: server mute dead player?
-            await gameChannel.send(`${target} has been eliminated!`);
-            if (target == hitler) {
-                await gameChannel.send(`Hitler has been eliminated!`);
-                await winMessage(true, gameChannel);
-            }
-        }
-    }).catch(err => console.log(err));
-    console.log("exiting killPlayer");
-}
-
-async function investigatePlayer(gameChannel) {
-
-}
-
-async function appointPres(gameChannel) {
-
 }
 
 async function resolveVote(gameChannel) {
@@ -414,14 +266,147 @@ async function playPolicy(gameChannel) {
     }).catch(err => console.log(err));
 }
 
-async function winMessage(libsWin, gameChannel) {
-    if (libsWin) {
-        await gameChannel.send(`Liberals win! Congratulations ${libs}`);
+//powers related functions
+
+async function checkForPowers(gameChannel) {
+    //SPECIAL POWERS ACTIVATE!!!!!!!
+    console.log("entering checkforpowers")
+    switch(Math.floor((numPlayers - 1) / 2)) {
+        case 2:
+            switch(redsPlayed) {
+                case 3:
+                    //peek
+                    await gameChannel.send(`President ${pres} is peeking at tiles.`)
+                    await pres.send(`You look at the top 3 tiles and see: ${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`);
+                    break;
+                case 4:
+                    //kill
+                    await killPlayer(gameChannel);
+                    break;
+                case 5:
+                    //kill
+                    await killPlayer(gameChannel);
+                    break;
+            }
+            break;
+        case 3:
+            switch(redsPlayed) {
+                case 2:
+                    //investigate
+                    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
+                        investigating = true;
+                    });
+                    break;
+                case 3:
+                    //appoint
+                    prevPres = pres;
+                    gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
+                        appointingPres = true;
+                    });
+                    break;
+                case 4:
+                    //kill
+                    await killPlayer(gameChannel);
+                    break;
+                case 5:
+                    //kill
+                    await killPlayer(gameChannel);
+                    break;
+            }
+            break;
+        case 4:
+            switch(redsPlayed) {
+                case 1:
+                    //investigate
+                    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
+                        investigating = true;
+                    });
+                    break;
+                case 2:
+                    //investigate
+                    gameChannel.send(`${pres}, investigate a player by typing ~investigate and @ing them.`).then(() => {
+                        investigating = true;
+                    });
+                    break;
+                case 3:
+                    //appoint
+                    prevPres = pres;
+                    gameChannel.send(`${pres}, choose the next president by typing ~appoint and @ing them.`).then(() => {
+                        appointingPres = true;
+                    });
+                    break;
+                case 4:
+                    //kill
+                    await killPlayer(gameChannel);
+                    break;
+                case 5:
+                    //kill
+                    await killPlayer(gameChannel);
+                    break;
+            }
+            break;
     }
-    else {
-        await gameChannel.send(`Fascists win! Congratulations ${fascists}`);
+    console.log("exiting checkForPowers");
+}
+
+async function killPlayer(gameChannel) {
+    console.log("entering killplayer")
+    await gameChannel.send(`${pres}, kill a player by typing kill and @ing them.`);
+    const filter = (message) => {
+        return (message.content.substring(0, 4) == 'kill') && (message.author == pres);
+    };
+    console.log("here");
+    //theres probably a cleaner way here, maybe collected = await ... and then remove the then???
+    await gameChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(async collected => {
+        console.log("collected")
+        let msg = collected.first();
+        target = msg.mentions.users.array()[0];
+
+        //code check for suicide
+        if (!players.includes(target)) {
+            gameChannel.send(`You can't kill ${target}.`)
+            await killPlayer(gameChannel);
+        } else {
+            players.splice(players.indexOf(target), 1);
+            //TODO: server mute dead player?
+            await gameChannel.send(`${target} has been eliminated!`);
+            if (target == hitler) {
+                await gameChannel.send(`Hitler has been eliminated!`);
+                await winMessage(true, gameChannel);
+            }
+        }
+    }).catch(err => console.log(err));
+    console.log("exiting killPlayer");
+}
+
+async function investigatePlayer(gameChannel) {
+
+}
+
+async function appointPres(gameChannel) {
+
+}
+
+// other helpers
+
+async function playTopPolicy(gameChannel) {
+    //Upon the election counter reaching 3, play the top policy tile
+    if (policyTiles.splice(0,1) == 'B') {
+        bluesPlayed++;
+    } else {
+        redsPlayed++;
     }
-    endGame();
+
+    //check for win
+    if (bluesPlayed == 5) {
+        winMessage(true, gameChannel);
+    } else if (redsPlayed == 6) {
+        winMessage(false, gameChannel);
+    }
+
+    if (redsPlayed > 2) {
+        await checkForPowers(gameChannel);
+    }
 }
 
 function showBoard(gameChannel) {
@@ -461,6 +446,18 @@ function showBoard(gameChannel) {
     gameChannel.send(board);
 }
 
+// end game functions
+
+async function winMessage(libsWin, gameChannel) {
+    if (libsWin) {
+        await gameChannel.send(`Liberals win! Congratulations ${libs}`);
+    }
+    else {
+        await gameChannel.send(`Fascists win! Congratulations ${fascists}`);
+    }
+    endGame();
+}
+
 function endGame() {
     initiated = false;
     gameInProgress = false;
@@ -477,6 +474,8 @@ function endGame() {
     pres = null;
     prevPres = null;
 }
+
+// event listeners
 
 // bot.on('messageReactionAdd', (reaction, user) => {
 //     let message = reaction.message, emoji = reaction.emoji;
@@ -557,7 +556,7 @@ bot.on('message', message => {
                         if (DEBUG) {
                             callVote(message.channel);
                         } else {
-                            if (players.indexOf(chancCand) == -1) {
+                            if (!players.includes(chancCand)) {
                                 message.channel.send(`Invalid choice, try again.`)
                             } else if (chancCand == chanc || chancCand == prevPres) {
                                 message.channel.send(`You cannot pick ${chancCand} as they were the previous president or chancellor. Please pick again.`);
@@ -589,7 +588,7 @@ bot.on('message', message => {
                 if(investigating) {
                     if (message.author == pres) {
                         investigated = message.mentions.users.array()[0];
-                        if(fascists.indexOf(investigated) != -1) {
+                        if(!fascists.includes(investigated)) {
                             pres.send(`${investigated} is fascist`).catch(err => {
                                 console.log("error: ")
                                 console.log(err);
