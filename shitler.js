@@ -1,6 +1,7 @@
 var auth = require('./auth.json');
 
 const Discord = require('discord.js');
+const { ConsoleTransportOptions } = require('winston/lib/winston/transports');
 const bot = new Discord.Client();
 
 //set true for debug/test mode
@@ -37,7 +38,6 @@ let investigating = false;
 let elecNum;
 let yesVotes = [];
 let noVotes = [];
-let killingPlayer = false;
 
 //TODO: make the board with tracks
 //TODO: veto power
@@ -54,6 +54,15 @@ function init() {
     initiated = true;
 }
 
+function startGame(gameChannel) {
+    gameInProgress = true;
+    elecNum = 0;
+    numPlayers = players.length;
+    assignRoles(numPlayers).then(() => {
+        startElection(gameChannel);
+    });
+}
+
 //shuffle tiles
 function shuffle() {
     let count = policyTiles.length;
@@ -63,15 +72,6 @@ function shuffle() {
         count--;
     }
 
-}
-
-function startGame(gameChannel) {
-    gameInProgress = true;
-    elecNum = 0;
-    numPlayers = players.length;
-    assignRoles(numPlayers).then(() => {
-        startElection(gameChannel);
-    });
 }
 
 async function assignRoles(numPlayers) {
@@ -143,7 +143,6 @@ function startElection(gameChannel) {
 async function callVote(gameChannel) {
     yesVotes.length = 0;
     noVotes.length = 0;
-    voteInProgress = true;
     pickingChanc = false;
     gameChannel.send(`Voting for president: ${pres} and chancellor: ${chancCand} has begun. Check your DMs to vote!`);
     const filter = (reaction, user) => {
@@ -165,30 +164,15 @@ async function callVote(gameChannel) {
         }).catch(collected => {
             message.reply('bad user bad');
         }));
-
-        //this is the old way that listens for DMs
-        // promises.push(player.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] })
-        // .then(collected => {
-        //     console.log(collected);
-        //     let msg = collected.first();
-        //     if (msg.content == "ja") {
-        //         yesVotes.push(msg.author);
-        //     } else {
-        //         noVotes.push(msg.author);
-        //     }
-        // })
-        // .catch(err => console.log(err)));
-        // console.log("promises: ");
-        // console.log(promises);
     }
     Promise.all(promises).then(() => {
         resolveVote(gameChannel);
     })
 }
 
-function playTopPolicy(gameChannel) {
+async function playTopPolicy(gameChannel) {
     //Upon the election counter reaching 3, play the top policy tile
-    if(policyTiles.splice(0,1) == 'B') {
+    if (policyTiles.splice(0,1) == 'B') {
         bluesPlayed++;
     } else {
         redsPlayed++;
@@ -197,38 +181,33 @@ function playTopPolicy(gameChannel) {
     //check for win
     if (bluesPlayed == 5) {
         winMessage(true, gameChannel);
-    }
-    if (redsPlayed == 6) {
+    } else if (redsPlayed == 6) {
         winMessage(false, gameChannel);
     }
 
     if (redsPlayed > 2) {
-        checkForPowers(gameChannel);
+        await checkForPowers(gameChannel);
     }
 }
 
-function checkForPowers(gameChannel) {
+async function checkForPowers(gameChannel) {
     //SPECIAL POWERS ACTIVATE!!!!!!!
+    console.log("entering checkforpowers")
     switch(Math.floor((numPlayers - 1) / 2)) {
         case 2:
             switch(redsPlayed) {
                 case 3:
                     //peek
-                    gameChannel.send("President is peeking at tiles.").then(() => {
-                        pres.send(`You look at the top 3 tiles and see: ${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`);
-                    });
+                    await gameChannel.send(`President ${pres} is peeking at tiles.`)
+                    await pres.send(`You look at the top 3 tiles and see: ${policyTiles[0]}, ${policyTiles[1]}, ${policyTiles[2]}`);
                     break;
                 case 4:
                     //kill
-                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
-                        killingPlayer = true;
-                    });
+                    await killPlayer(gameChannel);
                     break;
                 case 5:
                     //kill
-                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
-                        killingPlayer = true;
-                    });
+                    await killPlayer(gameChannel);
                     break;
             }
             break;
@@ -249,15 +228,11 @@ function checkForPowers(gameChannel) {
                     break;
                 case 4:
                     //kill
-                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
-                        killingPlayer = true;
-                    });
+                    await killPlayer(gameChannel);
                     break;
                 case 5:
                     //kill
-                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
-                        killingPlayer = true;
-                    });
+                    await killPlayer(gameChannel);
                     break;
             }
             break;
@@ -284,42 +259,76 @@ function checkForPowers(gameChannel) {
                     break;
                 case 4:
                     //kill
-                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
-                        killingPlayer = true;
-                    });
+                    await killPlayer(gameChannel);
                     break;
                 case 5:
                     //kill
-                    gameChannel.send(`${pres}, kill a player by typing ~kill and @ing them.`).then(() => {
-                        killingPlayer = true;
-                    });
+                    await killPlayer(gameChannel);
                     break;
             }
             break;
     }
+    console.log("exiting checkForPowers");
 }
 
-function resolveVote(gameChannel) {
-    voteInProgress = false;
-    gameChannel.send(`Yes votes: ${yesVotes}\nNo votes: ${noVotes}`);
+async function killPlayer(gameChannel) {
+    console.log("entering killplayer")
+    await gameChannel.send(`${pres}, kill a player by typing kill and @ing them.`);
+    const filter = (message) => {
+        return (message.content.substring(0, 4) == 'kill') && (message.author == pres);
+    };
+    console.log("here");
+    //theres probably a cleaner way here, maybe collected = await ... and then remove the then???
+    await gameChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(async collected => {
+        console.log("collected")
+        let msg = collected.first();
+        target = msg.mentions.users.array()[0];
+
+        //code check for suicide
+        if (players.indexOf(target) == -1) {
+            gameChannel.send(`You can't kill ${target}.`)
+            await killPlayer(gameChannel);
+        } else {
+            players.splice(players.indexOf(target), 1);
+            //TODO: server mute dead player?
+            await gameChannel.send(`${target} has been eliminated!`);
+            if (target == hitler) {
+                await gameChannel.send(`Hitler has been eliminated!`);
+                await winMessage(true, gameChannel);
+            }
+        }
+    }).catch(err => console.log(err));
+    console.log("exiting killPlayer");
+}
+
+async function investigatePlayer(gameChannel) {
+
+}
+
+async function appointPres(gameChannel) {
+
+}
+
+async function resolveVote(gameChannel) {
+    await gameChannel.send(`Yes votes: ${yesVotes}\nNo votes: ${noVotes}`);
     if (yesVotes.length > noVotes.length) {
         failedElections = 0;
         chanc = chancCand;
         if (redsPlayed >= 3 && chanc == hitler) {
-            gameChannel.send(`Game over! Hitler has been elected chancellor.`).then(winMessage(false, gameChannel));
+            //gameChannel.send(`Game over! Hitler has been elected chancellor.`).then(winMessage(false, gameChannel));
+        } else {
+            gameChannel.send(`The vote has passed.`).then(() => {
+                playPolicy(gameChannel);
+            });
         }
-        gameChannel.send(`The vote has passed.`).then(() => {
-            playPolicy(gameChannel);
-        });
         
     } else {
-        gameChannel.send(`The vote did not pass.`).then(() => {
-            failedElections++;
-            if(failedElections == 3) {
-                playTopPolicy();
-            }
-            startElection(gameChannel);
-        });
+        await gameChannel.send(`The vote did not pass.`);
+        failedElections++;
+        if(failedElections == 3) {
+            await playTopPolicy();
+        }
+        startElection(gameChannel);
     }
 }
 
@@ -352,17 +361,20 @@ async function playPolicy(gameChannel) {
             //discard third
             discard.push(tiles.splice(2, 1));
         }
-        console.log(tiles);
     }).catch(collected => {
         message.reply('bad user bad');
     });
+
+    //dm remaining to chanc
+    const message2 = await chanc.send("React with the number of the tile you with to play from the following: " + tiles);
+    await message2.react('1️⃣');
+    await message2.react('2️⃣');
 
     //chanc plays
     const filter2 = (reaction, user) => {
         return ['1️⃣', '2️⃣'].includes(reaction.emoji.name) && (user.id != bot.user.id);
     };
-    const message2 = await chanc.send("React with the number of the tile you with to play from the following: " + tiles);
-    await message2.awaitReactions(filter2, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
+    await message2.awaitReactions(filter2, { max: 1, time: 120000, errors: ['time'] }).then(async collected => {
         const reaction = collected.first();
         if (reaction.emoji.name === '1️⃣') {
             //play first (discard second)
@@ -373,102 +385,41 @@ async function playPolicy(gameChannel) {
         }
         
         if (tiles[0] === 'B') {
-            gameChannel.send("Liberal policy played.");
+            await gameChannel.send("Liberal policy played.");
             bluesPlayed++;
         } else {
-            gameChannel.send("Fascist policy played.");
+            await gameChannel.send("Fascist policy played.");
             redsPlayed++;
             if (redsPlayed > 2) {
-                checkForPowers(gameChannel);
+                await checkForPowers(gameChannel);
             }
-
-            //check for win
-            if (bluesPlayed == 5) {
-                winMessage(true, gameChannel);
-            }
-            if (redsPlayed == 6) {
-                winMessage(false, gameChannel);
-            }
-
+        }
+        //check for win
+        if (bluesPlayed == 5) {
+            winMessage(true, gameChannel);
+        } else if (redsPlayed == 6) {
+            winMessage(false, gameChannel);
+        } else { //game not over, start next cycle
             //check for empty deck
             if (policyTiles.length < 3) {
                 policyTiles = policyTiles.concat(discard);
                 shuffle();
             }
+            //check if hitler was killed
+            if (players.includes(hitler)) {
+                console.log("next cycle starting");
+                startElection(gameChannel);
+            }
         }
     }).catch(err => console.log(err));
-    startElection(gameChannel);
-    
-
-    // old way
-
-    // let filter;
-    // if (tiles.indexOf('B') == -1) {
-    //     filter = m => (m.content == ('R'));
-    // } else if (tiles.indexOf('R') == -1) {
-    //     filter = m => (m.content == ('B'));
-    // } else {
-    //     filter = m => (m.content == ('B') || m.content == ('R'));
-    // }
-    
-    // pres.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
-    //     let msg = collected.first();
-    //     temp = tiles.splice(tiles.indexOf(msg.content), 1);
-    //     discard.push(temp[0]);
-    //     console.log(discard);
-    //     //dm remaining to chancellor
-    //     chanc.send("DM me the tile you wish to play from the following: " + tiles).then(() => {
-    //         //chancellor selects one to play
-    //         let filter;
-    //         if (tiles.indexOf('B') == -1) {
-    //             filter = m => (m.content == ('R'));
-    //         } else if (tiles.indexOf('R') == -1) {
-    //             filter = m => (m.content == ('B'));
-    //         } else {
-    //             filter = m => (m.content == ('B') || m.content == ('R'));
-    //         }
-    //         chanc.dmChannel.awaitMessages(filter, { max: 1, time: 120000, errors: ['time'] }).then(collected => {
-    //             let msg = collected.first();
-    //             if (msg.content == 'B') {
-    //                 temp = tiles.splice(tiles.indexOf(msg.content), 1);
-    //                 discard.push(temp[0]);
-    //                 gameChannel.send("Liberal policy played.");
-    //                 bluesPlayed++;
-    //             } else {
-    //                 temp = tiles.splice(tiles.indexOf(msg.content), 1);
-    //                 discard.push(temp[0]);
-    //                 gameChannel.send("Fascist policy played.");
-    //                 redsPlayed++;
-    //                 if (redsPlayed > 2) {
-    //                     checkForPowers(gameChannel);
-    //                 }
-
-    //                 //check for win
-    //                 if (bluesPlayed == 5) {
-    //                     winMessage(true, gameChannel);
-    //                 }
-    //                 if (redsPlayed == 6) {
-    //                     winMessage(false, gameChannel);
-    //                 }
-
-    //                 //check for empty deck
-    //                 if (policyTiles.length < 3) {
-    //                     policyTiles = policyTiles.concat(discard);
-    //                     shuffle();
-    //                 }
-    //             }
-    //             startElection(gameChannel);
-    //         }).catch(err => console.log(err));
-    //     }).catch(err => console.log(err));
-    // }).catch(err => console.log(err));
 }
 
-function winMessage(libsWin, gameChannel) {
-    if(libsWin) {
-        gameChannel.send(`Liberals win! Congratulations ${liberals}`);
+async function winMessage(libsWin, gameChannel) {
+    if (libsWin) {
+        await gameChannel.send(`Liberals win! Congratulations ${libs}`);
     }
     else {
-        gameChannel.send(`Fascists win! Congratulations ${fascists}`);
+        await gameChannel.send(`Fascists win! Congratulations ${fascists}`);
     }
     endGame();
 }
@@ -532,14 +483,6 @@ function endGame() {
 // });
 
 bot.on('message', message => {
-
-    //this is literally bullying
-    // if (message.author.id == '230535346188713984') {
-    //     message.reply("god sees you, and he is disappointed").catch(err => {
-    //         console.log(err);
-    //     });
-    // }
-
     // listen for messages that will start with `~`
     if (message.content.substring(0, 1) == '~') {
         var args = message.content.substring(1).split(' ');
@@ -547,37 +490,7 @@ bot.on('message', message => {
        
         args = args.splice(1);
         switch(cmd) {
-            // DO NOT ABUSE THIS IS TOO POWERFUL
-            //could probably do crazier shit tbh
-            // case 'shutup':
-            //     if (message.author == '266133712997974017') {
-            //         //console.log(message.mentions.users.array()[0]);
-            //         let target = message.mentions.users.array()[0];
-            //         let userVoiceChannel = message.member.voice.channel;
-            //         userVoiceChannel.members.each(member => {
-            //             if (member.user == target) {
-            //                 member.voice.setMute(true);
-            //             }
-            //         });
-            //     }
-            //     break;
-            
-            // case 'spam':
-            //     //console.log(bot.users);
-            //     bot.users.fetch('230535346188713984').then(user => {
-            //         console.log(user);
-            //         for (let i = 0; i < 10; i++) {
-            //             user.send("ur stupid lol get fricked");
-            //         }
-            //     }).catch(err => {
-            //         console.log("error: ")
-            //         console.log(err);
-            //     });
-                
-            //     message.channel.send('austin is a stupidhead');
-            // break;
-
-            case 'init':
+            case 'shitler':
                 if (initiated) {
                     message.channel.send(`${message.author}, a game already exists! Type ~join to join it.`);
                 } else if (gameInProgress) {
@@ -590,9 +503,9 @@ bot.on('message', message => {
                     }
                 }
                 break;
-            case 'join':
+            case 'join': //move to reaction based maybe
                 if (!initiated) {
-                    message.channel.send(`${message.author}, no game currently exists. Type ~init to create one!`);
+                    message.channel.send(`${message.author}, no game currently exists. Type ~shitler to create one!`);
                 } else if (gameInProgress) {
                     message.channel.send(`${message.author}, a game is already in progress, please wait for it to end!`);
                 } else if (players.length < 11) {
@@ -602,9 +515,9 @@ bot.on('message', message => {
                     } else {
                         if (!players.includes(message.author)) {
                             players.push(message.author);
-                            message.channel.send(`<@${message.author}> has joined the game! There are ${players.length} player(s) currently. You can type ~leave to leave. If all players have joined, type ~start to start the game.`);
+                            message.channel.send(`${message.author} has joined the game! There are ${players.length} player(s) currently. You can type ~leave to leave. If all players have joined, type ~start to start the game.`);
                         } else {
-                            message.channel.send(`<@${message.author}>, you have already joined stfu lmao nerd`);
+                            message.channel.send(`${message.author}, you have already joined stfu lmao nerd`);
                         }
                     }
                 } else {
@@ -623,7 +536,7 @@ bot.on('message', message => {
                 break;
             case 'start':
                 if (!initiated) {
-                    message.channel.send(`${message.author}, no game currently exists. Type ~init to create one!`);
+                    message.channel.send(`${message.author}, no game currently exists. Type ~shitler to create one!`);
                 } else if (gameInProgress) {
                     message.channel.send(`${message.author}, a game is already in progress, please wait for it to end!`);
                 } else if (players.length < 5) {
@@ -643,39 +556,12 @@ bot.on('message', message => {
                         } else {
                             if (players.indexOf(chancCand) == -1) {
                                 message.channel.send(`Invalid choice, try again.`)
-                            }
-                            if (chancCand == chanc || chancCand == prevPres) {
+                            } else if (chancCand == chanc || chancCand == prevPres) {
                                 message.channel.send(`You cannot pick ${chancCand} as they were the previous president or chancellor. Please pick again.`);
                             } else {
-                                //will this work? i have no idea. i hope so
-
-                                //it does not work! what now lol
-                                // callVote(message.channel).then(() => {
-                                //     startElection(message.channel);
-                                // });
                                 callVote(message.channel);
                             }
                         }
-                    }
-                }
-                break;
-            case 'kill':
-                if (killingPlayer) {
-                    if (message.author == pres) {
-                        target = message.mentions.users.array()[0];
-                        if (players.indexOf(target) == -1) {
-                            message.channel.send(`You can't kill ${target}.`)
-                        }
-                        players.splice(players.indexOf(target), 1);
-                        //TODO: server mute dead player?
-                        message.channel.send(`${target} has been eliminated!`).then(() => {
-                            if(target == hitler) {
-                                message.channel.send(`Hitler has been eliminated!`).then(() => {
-                                    winMessage(true, gameChannel);
-                                })
-                            }
-                            killingPlayer = false;
-                        });  
                     }
                 }
                 break;
@@ -695,7 +581,7 @@ bot.on('message', message => {
                         }
                     }
                 }
-            break;
+                break;
             case 'investigate':
                 if(investigating) {
                     if (message.author == pres) {
@@ -720,6 +606,18 @@ bot.on('message', message => {
                 //TODO: code to visuallize board
                 showBoard(message.channel);
                 break;
+            case 'rules':
+                message.channel.send({embed : {
+                    color: 3447003,
+                    author: {
+                      name: bot.user.username,
+                      icon_url: bot.user.avatarURL
+                    },
+                    title: "Official Secret Hitler Rules",
+                    url: "https://secrethitler.com/assets/Secret_Hitler_Rules.pdf",
+                    }
+                });
+                break;
             case 'abort':
                 if (DEBUG) {
                     endGame();
@@ -728,7 +626,7 @@ bot.on('message', message => {
                 break;
             case 'help':
                 //TODO: finish this
-                message.channel.send('To create a game, use ~init. To join the game, use ~join. \
+                message.channel.send('To create a game, use ~shitler. To join the game, use ~join. \
                 Before the game starts, you can leave using ~leave. Once everyone has joined, use ~start to begin the game.');
                 break;
             default:
