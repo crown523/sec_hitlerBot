@@ -425,33 +425,36 @@ async function winMessage(libsWin, gameChannel) {
 }
 
 function showBoard(gameChannel) {
-    //find a better way to do this lmao
-    //ascii art i guess?
-    let line1 = "------------------------------------------------------------"; //60 hyphens
-    let line2 = "|";
-    let line3 = "|";
+    //no longer atrocious but still needs beautification
+    let line1 = "`-------------------------------------------------------------`"; //60 hyphens
+    let line2 = "`|";
+    let line3 = "`|";
     for (var i = 0; i < 5; i++) {
         if (i < bluesPlayed) {
-            line2 += "                   |"
-            line3 += "         L         |"
+            line2 += "           |"
+            line3 += "     L     |"
         } else {
-            line2 += "                   |"
-            line3 += "                   |"
+            line2 += "           |"
+            line3 += "           |"
         }
     }
-    let line4 = "------------------------------------------------------------";
-    let line5 = "|";
-    let line6 = "|";
+    line2 += "`";
+    line3 += "`";
+    let line4 = "`-------------------------------------------------------------`";
+    let line5 = "`|";
+    let line6 = "`|";
     for (var i = 0; i < 6; i++) {
         if (i < redsPlayed) {
-            line5 += "                 |"
-            line6 += "        F        |"
+            line5 += "         |"
+            line6 += "    F    |"
         } else {
-            line5 += "                 |"
-            line6 += "                 |"
+            line5 += "         |"
+            line6 += "         |"
         }
     }
-    let line7 = "------------------------------------------------------------";
+    line5 += "`";
+    line6 += "`";
+    let line7 = "`-------------------------------------------------------------`";
     let line8 = `Players still alive: ${players}`;
     let line9 = `Current failed elections: ${failedElections} out of 3`;
     let board = `${line1}\n${line2}\n${line3}\n${line4}\n${line5}\n${line6}\n${line7}\n${line8}\n${line9}`;
